@@ -213,7 +213,8 @@ def plot_rebalancing_comparison_charts(before_ratios, after_ratios, target_ratio
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10)); fig.set_facecolor('#2d2d3d')
     _draw_single_donut(ax1, before_ratios, target_ratios, "Before Rebalancing")
     _draw_single_donut(ax2, after_ratios, target_ratios, "After Rebalancing")
-    plt.tight_layout(pad=3.0); return fig
+    plt.tight_layout(pad=3.0)
+    plt.figure(fig, dpi = 300); return fig
     
 def _draw_single_donut(ax, current_ratios, target_ratios, title):
     target_ratios = target_ratios.reindex(current_ratios.index); categories = current_ratios.index
