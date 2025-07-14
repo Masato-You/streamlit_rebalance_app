@@ -430,7 +430,7 @@ def web_main():
                     if 'sell_df' in locals() and sell_df is not None:
                         for ticker, row_data in sell_df.iterrows():
                             row_index = df[df['Ticker'] == ticker].index[0]
-                            table.write(row_index + 1, shares_to_buy_col_index, -row_data['Shares_to_Sell'])
+                            table.write(row_index + 1, shares_to_buy_col_index, -row_data['建議賣出股數'])
 
                     # 將更新後的 doc 物件存入記憶體緩衝區
                     output_buffer = BytesIO()
