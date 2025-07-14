@@ -390,7 +390,7 @@ def web_main():
                             
                             
                             for index in sell_quantities_local.index:
-                                column = np.where(df.columns == 'Shares to Sell')[0][0]
+                                column = np.where(df.columns == 'Shares to buy')[0][0]
                                 row = np.where(df['Ticker'] == index)[0][0] + 1
                                 table.write(row, column, round(-sell_quantities_local[index],5), style = table.cell(row, column).style)
                                 
