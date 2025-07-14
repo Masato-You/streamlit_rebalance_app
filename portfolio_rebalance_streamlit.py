@@ -369,12 +369,31 @@ def web_main():
                         # --- 修改結束 ---
                         
                         if not sell_quantities_local.empty:
-                            column = np.where(df.columns == 'Shares to buy')[0][0]
+                            # 1. 建立一個包含賣出金額的 DataFrame
+                            sell_df = pd.DataFrame(sell_quantities_local)
+                            sell_df.columns = ['Sell_amount_Local']
+
+                            # 2. 計算建議購買的股數 (金額 / 價格)
+                            #    使用 .reindex 確保價格與要買的資產對齊
+                            aligned_prices = prices.reindex(sell_df.index)
+                            sell_df['Shares_to_Sell'] = sell_df['Sell_amount_Local'] / aligned_prices
+                            
+                            # 3. 建立用於顯示的格式化金額欄位
+                            sell_df['Formatted_Amount'] = sell_df.apply(
+                                lambda row: f"{asset_currencies[row.name]} {row['Sell_amount_Local']:,.2f}",
+                                axis=1
+                            )
+                            
+                            # 4. 準備最終顯示的 DataFrame，選擇並重新命名欄位
+                            display_sell_df = sell_df[['Formatted_Amount', 'Shares_to_Sell']]
+                            display_sell_df.columns = ['賣出金額', '建議股數']
+                            column = np.where(df.columns == 'Shares to sell')[0][0]
+                            
                             for index in sell_quantities_local.index:
                                 row = np.where(df['Ticker'] == index)[0][0] + 1
                                 table.write(row, column, round(-sell_quantities_local[index],5), style = table.cell(row, column).style)
-                            st.write("\n請賣出 (股)：")
-                            st.write(sell_quantities_local.round(5))
+                            st.write("\n請賣出：")
+                            st.write(display_sell_df.round(5))
                     #doc.save("portfolio_tracker.numbers")
                     st.write("--- 交易建議結束 ---")
                     
