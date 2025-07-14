@@ -239,8 +239,12 @@ def _draw_single_donut(ax, current_ratios, target_ratios, title):
     center_hole = plt.Circle((0,0), center_hole_radius, facecolor=bg_color, linestyle=''); ax.add_patch(center_hole)
     ax.set_xlim(-1.4, 1.4); ax.set_ylim(-1.4, 1.4); ax.axis('off')
 
-
-
+@st.fragment
+def invest_withdraw()
+    twd_invest = st.number_input("台幣 (TWD)", value=0)
+    usd_invest = st.number_input("美金 (USD)", value=0.00, format="%.2f")
+    jpy_invest = st.number_input("日圓 (JPY)", value=0)
+    return twd_invest, usd_invest, jpy_invest
 
 # --- Streamlit 網頁應用主體 ---
 def web_main():
@@ -285,10 +289,10 @@ def web_main():
                 buy_allowed = False
 
         st.subheader("投入/提領金額")
-        twd_invest = st.number_input("台幣 (TWD)", value=0)
-        usd_invest = st.number_input("美金 (USD)", value=0.00, format="%.2f")
-        jpy_invest = st.number_input("日圓 (JPY)", value=0)
-
+        #twd_invest = st.number_input("台幣 (TWD)", value=0)
+        #usd_invest = st.number_input("美金 (USD)", value=0.00, format="%.2f")
+        #jpy_invest = st.number_input("日圓 (JPY)", value=0)
+        twd_invest, usd_invest, jpy_invest = invest_withdraw()
         # 3. 執行按鈕
         if st.button("🚀 開始計算再平衡！", use_container_width=True):
             with st.spinner("正在獲取市場數據並執行計算..."):
