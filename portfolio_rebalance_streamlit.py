@@ -388,11 +388,11 @@ def web_main():
                             display_sell_df = sell_df[['Formatted_Amount', 'Shares_to_Sell']]
                             display_sell_df.columns = ['賣出金額', '建議股數']
                             column = np.where(df.columns == 'Shares to Sell')[0][0]
-'''                            
+                           
                             for index in sell_quantities_local.index:
                                 row = np.where(df['Ticker'] == index)[0][0] + 1
                                 table.write(row, column, round(-sell_quantities_local[index],5), style = table.cell(row, column).style)
-'''
+                                
                             st.write("\n請賣出：")
                             st.write(display_sell_df.round(5))
                     #doc.save("portfolio_tracker.numbers")
