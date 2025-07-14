@@ -212,7 +212,7 @@ def calculate_transactions(result_base, prices, asset_currencies, fx_rates):
 
 # (繪圖函式 _draw_single_donut 和 plot_rebalancing_comparison_charts 維持不變，此處省略)
 def plot_rebalancing_comparison_charts(before_ratios, after_ratios, target_ratios, filename):
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10)); fig.set_facecolor('#2d2d3d')
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6)); fig.set_facecolor('#2d2d3d')
     _draw_single_donut(ax1, before_ratios, target_ratios, "Before Rebalancing")
     _draw_single_donut(ax2, after_ratios, target_ratios, "After Rebalancing")
     plt.tight_layout(pad=1)
@@ -413,7 +413,7 @@ def web_main():
                         target_ratios=portfolio,
                         filename="rebalancing_side_by_side.png"
                     )
-                    st.pyplot(fig, dpi=300)
+                    st.pyplot(fig, dpi=600)
 
                     st.success("計算完成！")
 
