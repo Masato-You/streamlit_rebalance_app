@@ -363,9 +363,7 @@ def web_main():
                                 column = np.where(df.columns == 'Shares to buy')[0][0]
                                 row = np.where(df['Ticker'] == index)[0][0] + 1
                                 table.write(row, column, round(display_df['建議股數'][index],5), style = table.cell(row, column).style)
-                            st.write("\n請買入：")
-                            # .round(5) 讓股數的小數點後最多顯示5位
-                            st.write(display_df.round(5))
+                            
                         # --- 修改結束 ---
                         
                         if not sell_quantities_local.empty:
@@ -393,9 +391,6 @@ def web_main():
                                 column = np.where(df.columns == 'Shares to buy')[0][0]
                                 row = np.where(df['Ticker'] == index)[0][0] + 1
                                 table.write(row, column, round(-sell_quantities_local[index],5), style = table.cell(row, column).style)
-                                
-                            st.write("\n請賣出：")
-                            st.dataframe(display_sell_df.round(5))
                     col1, col2 = st.columns(2)
 
                     with col1:
