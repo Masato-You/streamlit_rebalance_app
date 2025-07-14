@@ -373,7 +373,7 @@ def web_main():
                             sell_df = pd.DataFrame(sell_quantities_local)
                             sell_df.columns = ['Sell_amount_Local']
 
-                            # 2. 計算建議購買的股數 (金額 / 價格)
+                            # 2. 計算建議賣出的股數 (金額 / 價格)
                             #    使用 .reindex 確保價格與要買的資產對齊
                             aligned_prices = prices.reindex(sell_df.index)
                             sell_df['Shares_to_Sell'] = sell_df['Sell_amount_Local'] / aligned_prices
@@ -387,11 +387,12 @@ def web_main():
                             # 4. 準備最終顯示的 DataFrame，選擇並重新命名欄位
                             display_sell_df = sell_df[['Formatted_Amount', 'Shares_to_Sell']]
                             display_sell_df.columns = ['賣出金額', '建議股數']
-                            column = np.where(df.columns == 'Shares to sell')[0][0]
-                            
+                            column = np.where(df.columns == 'Shares to Sell')[0][0]
+'''                            
                             for index in sell_quantities_local.index:
                                 row = np.where(df['Ticker'] == index)[0][0] + 1
                                 table.write(row, column, round(-sell_quantities_local[index],5), style = table.cell(row, column).style)
+'''
                             st.write("\n請賣出：")
                             st.write(display_sell_df.round(5))
                     #doc.save("portfolio_tracker.numbers")
