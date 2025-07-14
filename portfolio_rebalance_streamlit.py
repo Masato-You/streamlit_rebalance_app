@@ -253,22 +253,37 @@ def web_main():
     st.title("📈 資產組合再平衡計算機")
     st.markdown("""
     這個工具可以幫助您根據目標比例，計算出再平衡所需的交易。
-    請上傳您的 Apple Numbers 追蹤檔案 (`.numbers`) 來開始。
+    請修改並上傳您的 Apple Numbers 追蹤檔案 (`.numbers`) 來開始。
     """)
+
+    # --- 功能 1: 提供範例檔案下載 ---
+    try:
+        with open("portfolio_tracker.numbers", "rb") as fp:
+            st.download_button(
+                label="📥 點此下載 Numbers 範本檔案",
+                data=fp,
+                file_name="portfolio_tracker_template.numbers",
+                mime="application/octet-stream"
+            )
+    except FileNotFoundError:
+        st.warning("警告：找不到範本檔案 'portfolio_tracker.numbers'。下載功能將無法使用。")
+
+    st.markdown("---") # 分隔線
 
     # 1. 檔案上傳元件
     uploaded_file = st.file_uploader("上傳您的 portfolio_tracker.numbers 檔案", type=["numbers"])
 
     if uploaded_file is not None:
         # 為了讓 numbers-parser 能讀取，需先將上傳的檔案暫存
-        with open("temp_portfolio.numbers", "wb") as f:
-            f.write(uploaded_file.getbuffer())
+        # 將上傳的檔案內容寫入一個 BytesIO 物件，模擬檔案
+        file_buffer = BytesIO(uploaded_file.getvalue())
 
         # 讀取檔案並進行初步驗證
         try:
-            portfolio, quantities, tickers_list, table, df, doc = load_data_from_numbers("temp_portfolio.numbers")
+            # 修改 load_data_from_numbers 以接收 buffer
+            portfolio, quantities, tickers_list, table, df, doc = load_data_from_numbers(file_buffer)
             st.success("Numbers 檔案讀取成功！")
-            st.write(df) # 在網頁上顯示讀取到的表格
+            st.dataframe(df) # 在網頁上顯示讀取到的表格
         except Exception as e:
             st.error(f"讀取 Numbers 檔案時出錯：{e}")
             st.stop() # 出錯則停止執行
@@ -278,7 +293,10 @@ def web_main():
 
         col1, col2 = st.columns(2)
         with col1:
-            is_withdraw = st.radio("操作類型：", ('投入資金', '提領資金')) == '提領資金'
+            # 簡化提領/投入的判斷
+            investment_type = st.radio("操作類型：", ('投入資金', '提領資金'))
+        
+        is_withdraw = (investment_type == '提領資金')
 
         with col2:
             if is_withdraw:
@@ -288,129 +306,72 @@ def web_main():
                 sell_allowed = st.checkbox("投入時，允許賣出部分資產以達成平衡？")
                 buy_allowed = False
 
-        st.subheader("投入/提領金額")
-        #twd_invest = st.number_input("台幣 (TWD)", value=0)
-        #usd_invest = st.number_input("美金 (USD)", value=0.00, format="%.2f")
-        #jpy_invest = st.number_input("日圓 (JPY)", value=0)
-        twd_invest, usd_invest, jpy_invest = invest_withdraw()
+        st.subheader("投入/提領金額 (提領請輸入正數)")
+        # 使用 st.form 來組織輸入，避免每次更改數字都重新執行
+        with st.form(key='investment_form'):
+            twd_invest_abs = st.number_input("台幣 (TWD)", value=0, min_value=0, format="%d")
+            usd_invest_abs = st.number_input("美金 (USD)", value=0.00, min_value=0.0, format="%.2f")
+            jpy_invest_abs = st.number_input("日圓 (JPY)", value=0, min_value=0, format="%d")
+            
+            # 將提領金額轉換為負數
+            factor = -1 if is_withdraw else 1
+            twd_invest = twd_invest_abs * factor
+            usd_invest = usd_invest_abs * factor
+            jpy_invest = jpy_invest_abs * factor
+
+            submitted = st.form_submit_button("🚀 開始計算再平衡！", use_container_width=True)
+
         # 3. 執行按鈕
-        if st.button("🚀 開始計算再平衡！", use_container_width=True):
+        if submitted:
             with st.spinner("正在獲取市場數據並執行計算..."):
                 try:
-                    # --- 執行您原有的核心邏輯 ---
+                    # --- 執行核心邏輯 ---
                     prices, asset_currencies, fx_rates = get_asset_and_fx_data(tickers_list)
 
                     investment_base = (twd_invest / fx_rates.get('TWD', 1)) + \
                                       (usd_invest / fx_rates.get('USD', 1)) + \
                                       (jpy_invest / fx_rates.get('JPY', 1))
-
-                    # ... (此處省略中間的計算過程，與您原本的 main 函式相同) ...
-
-                    # 計算資產現值 (全部換算成基準貨幣 USD)
+                    
                     current_values_base = pd.Series(prices.values * quantities, index=prices.index)
-                    # (後續所有計算...)
                     for asset, value in current_values_base.items():
                         currency = asset_currencies.get(asset, BASE_CURRENCY)
                         if currency != BASE_CURRENCY:
                             current_values_base[asset] /= fx_rates.get(currency, 1.0)
                     
-                    # 5. 提領金額驗證
                     if is_withdraw:
                         total_withdrawal_base = abs(investment_base)
                         total_assets_base = current_values_base.sum()
                         if total_withdrawal_base > total_assets_base:
-                            st.write(f"\n錯誤：欲提領金額 (約 ${total_withdrawal_base:,.2f}) 已超出資產總額 (約 ${total_assets_base:,.2f})。")
-                            st.write("建議操作：請考慮賣出全部資產。"); exit()
+                            st.error(f"錯誤：欲提領金額 (約 ${total_withdrawal_base:,.2f}) 已超出資產總額 (約 ${total_assets_base:,.2f})。")
+                            st.stop()
 
-                    # 6. 執行再平衡計算
-                    st.spinner("\n正在計算再平衡計畫...")
                     result_base = rebalance(investment_base, current_values_base, portfolio, is_withdraw, sell_allowed, buy_allowed)
-                    
-                    # 7. 計算交易建議
                     buy_amounts_local, sell_quantities_local = calculate_transactions(result_base, prices, asset_currencies, fx_rates)
-
+                    
                     # --- 在網頁上顯示結果 ---
                     st.header("📊 計算結果")
-
-                    # (顯示文字交易建議...)
                     st.subheader("--- 交易建議 ---")
-                    for index in df['Ticker'].values:
-                        column = np.where(df.columns == 'Shares to buy')[0][0]
-                        row = np.where(df['Ticker'] == index)[0][0] + 1
-                        table.write(row, column, 0, style = table.cell(row, column).style)    
-                    if buy_amounts_local.empty and sell_quantities_local.empty:
-                        st.write("無需進行任何交易。")
-                    else:
-                        # --- 修改開始：處理買入資產的顯示 ---
-                        if not buy_amounts_local.empty:
-                            # 1. 建立一個包含買入金額的 DataFrame
-                            buy_df = pd.DataFrame(buy_amounts_local)
-                            buy_df.columns = ['Amount_Local']
 
-                            # 2. 計算建議購買的股數 (金額 / 價格)
-                            #    使用 .reindex 確保價格與要買的資產對齊
+                    if buy_amounts_local.empty and sell_quantities_local.empty:
+                        st.info("無需進行任何交易。")
+                    else:
+                        buy_df, sell_df = None, None
+                        if not buy_amounts_local.empty:
+                            buy_df = pd.DataFrame({'Amount_Local': buy_amounts_local})
                             aligned_prices = prices.reindex(buy_df.index)
                             buy_df['Shares_to_Buy'] = buy_df['Amount_Local'] / aligned_prices
-                            
-                            # 3. 建立用於顯示的格式化金額欄位
-                            buy_df['Formatted_Amount'] = buy_df.apply(
-                                lambda row: f"{asset_currencies[row.name]} {row['Amount_Local']:,.2f}",
-                                axis=1
-                            )
-                            
-                            # 4. 準備最終顯示的 DataFrame，選擇並重新命名欄位
-                            display_df = buy_df[['Formatted_Amount', 'Shares_to_Buy']]
-                            display_df.columns = ['買入金額', '建議股數']
-                            
-                            #5. 寫入 numbers 檔中 Shares to buy 欄
-                            for index in display_df.index:
-                                column = np.where(df.columns == 'Shares to buy')[0][0]
-                                row = np.where(df['Ticker'] == index)[0][0] + 1
-                                table.write(row, column, round(display_df['建議股數'][index],5), style = table.cell(row, column).style)
-                            
-                        # --- 修改結束 ---
-                        
+                            buy_df['Formatted_Amount'] = buy_df.apply(lambda row: f"{asset_currencies[row.name]} {row['Amount_Local']:,.2f}", axis=1)
+                            display_buy_df = buy_df[['Formatted_Amount', 'Shares_to_Buy']].rename(columns={'Formatted_Amount': '買入金額', 'Shares_to_Buy': '建議股數'})
+                            st.write("請買入：")
+                            st.dataframe(display_buy_df.round(5))
+
                         if not sell_quantities_local.empty:
-                            # 1. 建立一個包含賣出金額的 DataFrame
-                            sell_df = pd.DataFrame(sell_quantities_local)
-                            sell_df.columns = ['Sell_amount_Local']
-                 
-                            # 2. 計算建議賣出的股數 (金額 / 價格)
-                            #    使用 .reindex 確保價格與要買的資產對齊
-                            aligned_prices = prices.reindex(sell_df.index)
-                            sell_df['Shares_to_Sell'] = sell_df['Sell_amount_Local'] / aligned_prices
-                     
-                            # 3. 建立用於顯示的格式化金額欄位
-                            sell_df['Formatted_Amount'] = sell_df.apply(
-                                lambda row: f"{asset_currencies[row.name]} {row['Sell_amount_Local']:,.2f}",
-                                axis=1
-                            )
+                            sell_df = pd.DataFrame({'Shares_to_Sell': sell_quantities_local})
+                            sell_df.columns = ['建議賣出股數']
+                            st.write("請賣出：")
+                            st.dataframe(sell_df.round(5))
                     
-                            # 4. 準備最終顯示的 DataFrame，選擇並重新命名欄位
-                            display_sell_df = sell_df[['Formatted_Amount', 'Shares_to_Sell']]
-                            display_sell_df.columns = ['賣出金額', '建議股數']
-                            
-                            
-                            for index in sell_quantities_local.index:
-                                column = np.where(df.columns == 'Shares to buy')[0][0]
-                                row = np.where(df['Ticker'] == index)[0][0] + 1
-                                table.write(row, column, round(-sell_quantities_local[index],5), style = table.cell(row, column).style)
-                    col1, col2 = st.columns(2)
-
-                    with col1:
-                        st.write("\n請買入：")
-                        # .round(5) 讓股數的小數點後最多顯示5位
-                        st.write(display_df.round(5))
-                    with col2:
-                        st.write("\n請賣出：")
-                        # .round(5) 讓股數的小數點後最多顯示5位
-                        st.write(display_sell_df.round(5))
-                    #doc.save("portfolio_tracker.numbers")
-                    st.write("--- 交易建議結束 ---")
-                    
-
-                    # 繪製圖表並顯示
-                    # (注意：plot函式需要修改，不再 plt.show()，而是回傳 figure 物件)
+                    st.subheader("--- 圖表分析 ---")
                     before_ratio = current_values_base / current_values_base.sum()
                     adjusted_values_base = current_values_base + result_base
                     adjusted_values_base[adjusted_values_base < 0] = 0
@@ -420,16 +381,48 @@ def web_main():
                         before_ratios=before_ratio,
                         after_ratios=after_ratio,
                         target_ratios=portfolio,
-                        filename="rebalancing_side_by_side.png"
+                        filename="rebalancing_side_by_side.png" # filename is not used here but good practice
                     )
-                    st.pyplot(fig, dpi=600)
+                    st.pyplot(fig)
 
-                    st.success("計算完成！")
+                    # --- 功能 2: 產生並下載結果檔 ---
+                    st.subheader("--- 下載更新後的檔案 ---")
+                    
+                    # 將交易建議寫入 numbers_parser 的 table 物件
+                    # 先清空舊資料
+                    shares_to_buy_col_index = df.columns.get_loc('Shares to buy')
+                    for i in range(len(df)):
+                        table.write(i + 1, shares_to_buy_col_index, 0) # i+1 to skip header
+
+                    # 寫入買入建議
+                    if 'buy_df' in locals() and buy_df is not None:
+                        for ticker, row_data in buy_df.iterrows():
+                            row_index = df[df['Ticker'] == ticker].index[0]
+                            table.write(row_index + 1, shares_to_buy_col_index, row_data['Shares_to_Buy'])
+                    
+                    # 寫入賣出建議 (以負數表示)
+                    if 'sell_df' in locals() and sell_df is not None:
+                        for ticker, row_data in sell_df.iterrows():
+                            row_index = df[df['Ticker'] == ticker].index[0]
+                            table.write(row_index + 1, shares_to_buy_col_index, -row_data['Shares_to_Sell'])
+
+                    # 將更新後的 doc 物件存入記憶體緩衝區
+                    output_buffer = BytesIO()
+                    doc.save(output_buffer)
+                    output_buffer.seek(0)
+
+                    st.download_button(
+                        label="📥 點此下載包含交易建議的 Numbers 檔案",
+                        data=output_buffer,
+                        file_name="rebalanced_portfolio.numbers",
+                        mime="application/octet-stream"
+                    )
+
+                    st.success("全部流程完成！")
 
                 except Exception as e:
                     st.error(f"計算過程中發生錯誤：{e}")
 
-
-
 if __name__ == '__main__':
+    # 為了版面整潔，再次提醒，所有函式定義都應放在 web_main() 之前
     web_main()
