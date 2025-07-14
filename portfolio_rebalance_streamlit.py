@@ -76,7 +76,7 @@ def get_asset_and_fx_data(tickers_list):
     """
     獲取所有資產的價格、貨幣資訊，以及所有需要的匯率。
     """
-    st.write("\n正在從 Yahoo Finance 獲取資產數據...")
+    #st.write("\n正在從 Yahoo Finance 獲取資產數據...")
     tickers_str = ' '.join(tickers_list)
     tickers = yf.Tickers(tickers_str)
     
@@ -127,7 +127,7 @@ def get_asset_and_fx_data(tickers_list):
 
     st.write("資產數據與匯率獲取完成。")
     return prices, asset_currencies, fx_rates
-
+'''
 def get_investment_amounts(supported_currencies, fx_rates):
     """互動式詢問使用者本次投入/提領的金額，並換算成基準貨幣。"""
     def _get_numeric_input(prompt):
@@ -148,7 +148,8 @@ def get_investment_amounts(supported_currencies, fx_rates):
          st.write("警告：所有輸入貨幣的匯率均無法獲取，總投入/提領金額為0。")
 
     return total_investment_base_currency
-
+'''
+'''
 def get_permissions(is_withdraw):
     """根據是提領還是投入，詢問對應的權限。"""
     if is_withdraw:
@@ -159,14 +160,14 @@ def get_permissions(is_withdraw):
         st.write("\n偵測到投入操作。")
         sell = input("投入時，是否允許賣出部分資產以達成平衡？ (y/n): ").lower().strip() in ['y', 'yes']
         return sell, False # sell=True/False, buy=False
-
+'''
 def rebalance(investment_base, current_values_base, portfolio, is_withdraw, sell_allowed, buy_allowed):
     """通用再平衡計算函式。"""
-    total_asset_base = current_values_base.sum() + investment_base
-    target_values = portfolio * total_asset_base
-    investment_diff = target_values - current_values_base
 
     if is_withdraw:
+        total_asset_base = current_values_base.sum() - investment_base
+        target_values = portfolio * total_asset_base
+        investment_diff = target_values - current_values_base
         if buy_allowed or not any(investment_diff > 0):
             return investment_diff
         else:
@@ -175,6 +176,9 @@ def rebalance(investment_base, current_values_base, portfolio, is_withdraw, sell
             sub_result = rebalance(investment_base, sub_value, sub_portfolio / sub_portfolio.sum(), is_withdraw, sell_allowed, buy_allowed)
             return sub_result.reindex(portfolio.index, fill_value=0)
     else: # is_invest
+        total_asset_base = current_values_base.sum() + investment_base
+        target_values = portfolio * total_asset_base
+        investment_diff = target_values - current_values_base
         if sell_allowed or not any(investment_diff < 0):
             return investment_diff
         else:
@@ -210,7 +214,7 @@ def calculate_transactions(result_base, prices, asset_currencies, fx_rates):
 
 # (繪圖函式 _draw_single_donut 和 plot_rebalancing_comparison_charts 維持不變，此處省略)
 def plot_rebalancing_comparison_charts(before_ratios, after_ratios, target_ratios, filename):
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5)); fig.set_facecolor('#2d2d3d')
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6)); fig.set_facecolor('#2d2d3d')
     _draw_single_donut(ax1, before_ratios, target_ratios, "Before Rebalancing")
     _draw_single_donut(ax2, after_ratios, target_ratios, "After Rebalancing")
     plt.tight_layout(pad=1)
@@ -283,9 +287,9 @@ def web_main():
                 buy_allowed = False
 
         st.subheader("投入/提領金額")
-        twd_invest = st.number_input("台幣 (TWD)", value=0.0, format="%.2f")
-        usd_invest = st.number_input("美金 (USD)", value=0.0, format="%.2f")
-        jpy_invest = st.number_input("日圓 (JPY)", value=0.0, format="%.2f")
+        twd_invest = st.number_input("台幣 (TWD)", value=0)
+        usd_invest = st.number_input("美金 (USD)", value=0.00, format="%.2f")
+        jpy_invest = st.number_input("日圓 (JPY)", value=0)
 
         # 3. 執行按鈕
         if st.button("🚀 開始計算再平衡！", use_container_width=True):
