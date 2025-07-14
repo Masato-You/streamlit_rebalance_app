@@ -413,7 +413,7 @@ def web_main():
                         target_ratios=portfolio,
                         filename="rebalancing_side_by_side.png"
                     )
-                    st.pyplot(fig, dpi=800)
+                    st.pyplot(fig, dpi=1200)
 
                     st.success("計算完成！")
 
