@@ -395,7 +395,7 @@ def web_main():
                                 table.write(row, column, round(-sell_quantities_local[index],5), style = table.cell(row, column).style)
                                 
                             st.write("\n請賣出：")
-                            st.write(display_sell_df.round(5))
+                            st.dataframe(display_sell_df.round(5))
                     #doc.save("portfolio_tracker.numbers")
                     st.write("--- 交易建議結束 ---")
                     
