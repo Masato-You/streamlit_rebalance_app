@@ -386,13 +386,11 @@ def web_main():
                     
                             # 4. 準備最終顯示的 DataFrame，選擇並重新命名欄位
                             display_sell_df = sell_df[['Formatted_Amount', 'Shares_to_Sell']]
-                            st.write(4)
                             display_sell_df.columns = ['賣出金額', '建議股數']
-                            st.write(44)
-                            column = np.where(df.columns == 'Shares to Sell')[0][0]
-                            st.write(444)
+                            
                             
                             for index in sell_quantities_local.index:
+                                column = np.where(df.columns == 'Shares to Sell')[0][0]
                                 row = np.where(df['Ticker'] == index)[0][0] + 1
                                 table.write(row, column, round(-sell_quantities_local[index],5), style = table.cell(row, column).style)
                                 
