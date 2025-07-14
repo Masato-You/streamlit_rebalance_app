@@ -93,7 +93,7 @@ def get_asset_and_fx_data(tickers_list):
             asset_currencies[ticker_symbol] = BASE_CURRENCY
             unique_currencies.add(BASE_CURRENCY)
 
-    st.write(f"偵測到資產貨幣: {list(unique_currencies)}")
+    with st.spinner(f"偵測到資產貨幣: {list(unique_currencies)}")
     
     # 獲取所有需要的匯率 (對美元)
     # --- FIX: 修正匯率代號的建構方式 ---
@@ -103,7 +103,7 @@ def get_asset_and_fx_data(tickers_list):
     fx_rates = {BASE_CURRENCY: 1.0}
     
     if fx_tickers_to_fetch:
-        st.write(f"正在獲取匯率: {fx_tickers_to_fetch}")
+        with st.spinner(f"正在獲取匯率: {fx_tickers_to_fetch}")
         fx_data = yf.Tickers(' '.join(fx_tickers_to_fetch))
         for fx_ticker in fx_tickers_to_fetch:
             # --- FIX: 修正從匯率代號解析回貨幣碼的方式 ---
@@ -319,7 +319,7 @@ def web_main():
                             st.write("建議操作：請考慮賣出全部資產。"); exit()
 
                     # 6. 執行再平衡計算
-                    st.write("\n正在計算再平衡計畫...")
+                    with st.spinner("\n正在計算再平衡計畫...")
                     result_base = rebalance(investment_base, current_values_base, portfolio, is_withdraw, sell_allowed, buy_allowed)
                     
                     # 7. 計算交易建議
@@ -396,6 +396,16 @@ def web_main():
                                 
                             st.write("\n請賣出：")
                             st.dataframe(display_sell_df.round(5))
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.write("\n請買入：")
+                        # .round(5) 讓股數的小數點後最多顯示5位
+                        st.write(display_df.round(5))
+                    with col2:
+                        st.write("\n請賣出：")
+                        # .round(5) 讓股數的小數點後最多顯示5位
+                        st.write(display_sell_df.round(5))
                     #doc.save("portfolio_tracker.numbers")
                     st.write("--- 交易建議結束 ---")
                     
