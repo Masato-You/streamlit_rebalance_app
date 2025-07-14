@@ -74,57 +74,58 @@ def load_data_from_numbers(filename="portfolio_tracker.numbers"):
         exit()
 def get_asset_and_fx_data(tickers_list):
     """
-    獲取所有資產的價格、貨幣資訊，以及所有需要的匯率。
+    獲取所有資產的價格、貨幣資訊，以及所有需要的匯率（使用更穩健的混合模式）。
     """
-    #st.write("\n正在從 Yahoo Finance 獲取資產數據...")
+    st.write("\n正在從 Yahoo Finance 獲取資產數據...")
     tickers_str = ' '.join(tickers_list)
     tickers = yf.Tickers(tickers_str)
     
     asset_currencies = {}
     unique_currencies = set()
 
+    # --- 修改：使用更穩健的混合模式獲取貨幣 ---
     for ticker_symbol, ticker_obj in tickers.tickers.items():
-        try:
-            currency = ticker_obj.info.get('currency', BASE_CURRENCY).upper()
-            asset_currencies[ticker_symbol] = currency
-            unique_currencies.add(currency)
-        except Exception:
-            st.write(f"警告：無法獲取 {ticker_symbol} 的貨幣資訊，將預設為 {BASE_CURRENCY}。")
-            asset_currencies[ticker_symbol] = BASE_CURRENCY
-            unique_currencies.add(BASE_CURRENCY)
+        currency = None
+        # 1. 優先根據後綴判斷，無需額外網路請求，穩定快速
+        if ticker_symbol.endswith('.TW'):
+            currency = 'TWD'
+        # (未來可以繼續增加其他市場的判斷，例如 .T 代表 JPY)
+        # elif ticker_symbol.endswith('.T'):
+        #     currency = 'JPY'
+        
+        # 2. 如果沒有符合的後綴，再嘗試用 .info 查詢
+        if currency is None:
+            try:
+                currency = ticker_obj.info.get('currency', BASE_CURRENCY).upper()
+            except Exception:
+                st.warning(f"警告：無法獲取 {ticker_symbol} 的貨幣資訊，將預設為 {BASE_CURRENCY}。")
+                currency = BASE_CURRENCY
+        
+        asset_currencies[ticker_symbol] = currency
+        unique_currencies.add(currency)
+    # --- 修改結束 ---
 
-    st.spinner(f"偵測到資產貨幣: {list(unique_currencies)}")
+    st.write(f"偵測到資產貨幣: {list(unique_currencies)}")
     
-    # 獲取所有需要的匯率 (對美元)
-    # --- FIX: 修正匯率代號的建構方式 ---
-    # 錯誤的: f"{c}{BASE_CURRENCY}=X" (例如 TWDUSD=X)
-    # 正確的: f"{c}=X" (例如 TWD=X)
     fx_tickers_to_fetch = [f"{c}=X" for c in unique_currencies if c != BASE_CURRENCY]
     fx_rates = {BASE_CURRENCY: 1.0}
     
     if fx_tickers_to_fetch:
-        st.spinner(f"正在獲取匯率: {fx_tickers_to_fetch}")
+        st.write(f"正在獲取匯率: {fx_tickers_to_fetch}")
         fx_data = yf.Tickers(' '.join(fx_tickers_to_fetch))
         for fx_ticker in fx_tickers_to_fetch:
-            # --- FIX: 修正從匯率代號解析回貨幣碼的方式 ---
             currency_code = fx_ticker.replace("=X", "")
             try:
-                # 使用 last-day's close price for robustness
                 rate = fx_data.tickers[fx_ticker].history(period='5d')['Close'].ffill().iloc[-1]
                 if pd.isna(rate):
                     raise ValueError(f"Rate for {fx_ticker} is NaN.")
                 fx_rates[currency_code] = rate
             except Exception as e:
-                st.write(f"錯誤：無法獲取匯率 {fx_ticker}，程式將終止。")
-                st.write(f"請檢查 yfinance 是否支援此匯率代號。錯誤訊息: {e}")
-                exit()
+                st.error(f"錯誤：無法獲取匯率 {fx_ticker}，程式將終止。")
+                st.stop()
     
-    # 獲取資產價格
     prices = tickers.history(period='5d')['Close'].ffill().iloc[-1]
     prices = prices.reindex(tickers_list)
-    st.write("各資產最近一個交易日收盤價：")
-    st.write(prices)
-
     st.write("資產數據與匯率獲取完成。")
     return prices, asset_currencies, fx_rates
 
@@ -355,25 +356,46 @@ def web_main():
                     # --- 在網頁上顯示結果 ---
                     st.header("📊 計算結果")
                     st.subheader("--- 交易建議 ---")
-
+                    
                     if buy_amounts_local.empty and sell_quantities_local.empty:
                         st.info("無需進行任何交易。")
                     else:
-                        buy_df, sell_df = None, None
-                        if not buy_amounts_local.empty:
-                            buy_df = pd.DataFrame({'Amount_Local': buy_amounts_local})
-                            aligned_prices = prices.reindex(buy_df.index)
-                            buy_df['Shares_to_Buy'] = buy_df['Amount_Local'] / aligned_prices
-                            buy_df['Formatted_Amount'] = buy_df.apply(lambda row: f"{asset_currencies[row.name]} {row['Amount_Local']:,.2f}", axis=1)
-                            display_buy_df = buy_df[['Formatted_Amount', 'Shares_to_Buy']].rename(columns={'Formatted_Amount': '買入金額', 'Shares_to_Buy': '建議股數'})
-                            st.write("請買入：")
-                            st.dataframe(display_buy_df.round(5))
+                        col1, col2 = st.columns(2)
+                        buy_df = None # 初始化
+                        
+                        with col1:
+                            if not buy_amounts_local.empty:
+                                buy_df = pd.DataFrame({'Amount_Local': buy_amounts_local})
+                                aligned_prices = prices.reindex(buy_df.index)
+                                buy_df['Shares_to_Buy'] = buy_df['Amount_Local'] / aligned_prices
+                                buy_df['Formatted_Amount'] = buy_df.apply(
+                                    lambda row: f"{asset_currencies[row.name]} {row['Amount_Local']:,.2f}",
+                                    axis=1
+                                )
+                                display_buy_df = buy_df[['Formatted_Amount', 'Shares_to_Buy']].rename(columns={'Formatted_Amount': '買入金額', 'Shares_to_Buy': '建議股數'})
+                                
+                                st.write("請買入：")
+                                st.dataframe(display_buy_df.round(5))
+                            else:
+                                st.write("請買入：")
+                                st.info("無")
+                    
+                        with col2:
+                            # --- 修正：簡化賣出建議的顯示邏輯 ---
+                            if not sell_quantities_local.empty:
+                                # 直接將已算好的「賣出股數」Series 轉成 DataFrame
+                                sell_df = pd.DataFrame(sell_quantities_local)
+                                sell_df.columns = ['建議賣出股數'] # 重新命名欄位
+                                
+                                st.write("請賣出：")
+                                st.dataframe(sell_df.round(5))
+                            else:
+                                st.write("請賣出：")
+                                st.info("無")
+                            # --- 修正結束 ---
+                    
 
-                        if not sell_quantities_local.empty:
-                            sell_df = pd.DataFrame({'Shares_to_Sell': sell_quantities_local})
-                            sell_df.columns = ['建議賣出股數']
-                            st.write("請賣出：")
-                            st.dataframe(sell_df.round(5))
+
                     
                     st.subheader("--- 圖表分析 ---")
                     before_ratio = current_values_base / current_values_base.sum()
@@ -423,7 +445,6 @@ def web_main():
                     )
 
                     st.success("全部流程完成！")
-
                 except Exception as e:
                     st.error(f"計算過程中發生錯誤：{e}")
 
