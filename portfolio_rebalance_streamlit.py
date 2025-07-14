@@ -240,7 +240,7 @@ def _draw_single_donut(ax, current_ratios, target_ratios, title):
     ax.set_xlim(-1.4, 1.4); ax.set_ylim(-1.4, 1.4); ax.axis('off')
 
 @st.fragment
-def invest_withdraw()
+def invest_withdraw():
     twd_invest = st.number_input("台幣 (TWD)", value=0)
     usd_invest = st.number_input("美金 (USD)", value=0.00, format="%.2f")
     jpy_invest = st.number_input("日圓 (JPY)", value=0)
