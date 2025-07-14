@@ -274,18 +274,25 @@ def web_main():
     uploaded_file = st.file_uploader("上傳您的 portfolio_tracker.numbers 檔案", type=["numbers"])
 
     if uploaded_file is not None:
-        # 為了讓 numbers-parser 能讀取，需先將上傳的檔案暫存
-        # 將上傳的檔案內容寫入一個 BytesIO 物件，模擬檔案
-        file_buffer = BytesIO(uploaded_file.getvalue())
+        # --- 修正：將上傳的檔案寫入暫存檔 ---
+        # 定義一個暫存檔案的路徑
+        temp_file_path = "temp_uploaded_portfolio.numbers"
+        # 將使用者上傳的檔案內容寫入這個暫存路徑
+        with open(temp_file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        # --- 修正結束 ---
 
         # 讀取檔案並進行初步驗證
         try:
-            # 修改 load_data_from_numbers 以接收 buffer
-            portfolio, quantities, tickers_list, table, df, doc = load_data_from_numbers(file_buffer)
+            # 現在傳遞的是暫存檔案的路徑(字串)，而不是記憶體物件
+            portfolio, quantities, tickers_list, table, df, doc = load_data_from_numbers(temp_file_path)
             st.success("Numbers 檔案讀取成功！")
             st.dataframe(df) # 在網頁上顯示讀取到的表格
         except Exception as e:
             st.error(f"讀取 Numbers 檔案時出錯：{e}")
+            # 清理暫存檔 (可選)
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
             st.stop() # 出錯則停止執行
 
         # 2. 互動式輸入元件
@@ -293,7 +300,6 @@ def web_main():
 
         col1, col2 = st.columns(2)
         with col1:
-            # 簡化提領/投入的判斷
             investment_type = st.radio("操作類型：", ('投入資金', '提領資金'))
         
         is_withdraw = (investment_type == '提領資金')
@@ -307,13 +313,11 @@ def web_main():
                 buy_allowed = False
 
         st.subheader("投入/提領金額 (提領請輸入正數)")
-        # 使用 st.form 來組織輸入，避免每次更改數字都重新執行
         with st.form(key='investment_form'):
             twd_invest_abs = st.number_input("台幣 (TWD)", value=0, min_value=0, format="%d")
             usd_invest_abs = st.number_input("美金 (USD)", value=0.00, min_value=0.0, format="%.2f")
             jpy_invest_abs = st.number_input("日圓 (JPY)", value=0, min_value=0, format="%d")
             
-            # 將提領金額轉換為負數
             factor = -1 if is_withdraw else 1
             twd_invest = twd_invest_abs * factor
             usd_invest = usd_invest_abs * factor
