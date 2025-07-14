@@ -127,7 +127,7 @@ def get_asset_and_fx_data(tickers_list):
 
     st.write("資產數據與匯率獲取完成。")
     return prices, asset_currencies, fx_rates
-'''
+
 def get_investment_amounts(supported_currencies, fx_rates):
     """互動式詢問使用者本次投入/提領的金額，並換算成基準貨幣。"""
     def _get_numeric_input(prompt):
@@ -148,8 +148,7 @@ def get_investment_amounts(supported_currencies, fx_rates):
          st.write("警告：所有輸入貨幣的匯率均無法獲取，總投入/提領金額為0。")
 
     return total_investment_base_currency
-'''
-'''
+
 def get_permissions(is_withdraw):
     """根據是提領還是投入，詢問對應的權限。"""
     if is_withdraw:
@@ -160,7 +159,7 @@ def get_permissions(is_withdraw):
         st.write("\n偵測到投入操作。")
         sell = input("投入時，是否允許賣出部分資產以達成平衡？ (y/n): ").lower().strip() in ['y', 'yes']
         return sell, False # sell=True/False, buy=False
-'''
+
 def rebalance(investment_base, current_values_base, portfolio, is_withdraw, sell_allowed, buy_allowed):
     """通用再平衡計算函式。"""
 
