@@ -199,18 +199,17 @@ def calculate_transactions(result_base, prices, asset_currencies, fx_rates):
         currency = asset_currencies[asset]
         rate = fx_rates.get(currency, 1.0)
         buy_amounts_local[asset] = amount_base * rate
-
     # 處理賣出股數
-    sell_quantities = pd.Series(dtype=float)
+    sell_quantities_local = sell_assets.copy()
     for asset, amount_base in sell_assets.items():
         currency = asset_currencies[asset]
         rate = fx_rates.get(currency, 1.0)
         price_local = prices[asset]
         # 賣出價值 (原始貨幣) = 賣出價值 (基準貨幣) * 匯率
         sell_value_local = abs(amount_base) * rate
-        sell_quantities[asset] = sell_value_local / price_local if price_local > 0 else 0
+        sell_quantities_local[asset] = sell_value_local / price_local if price_local > 0 else 0
 
-    return buy_amounts_local, sell_quantities
+    return buy_amounts_local, sell_quantities_local
 
 # (繪圖函式 _draw_single_donut 和 plot_rebalancing_comparison_charts 維持不變，此處省略)
 def plot_rebalancing_comparison_charts(before_ratios, after_ratios, target_ratios, filename):
@@ -325,7 +324,7 @@ def web_main():
                     result_base = rebalance(investment_base, current_values_base, portfolio, is_withdraw, sell_allowed, buy_allowed)
                     
                     # 7. 計算交易建議
-                    buy_amounts_local, sell_quantities = calculate_transactions(result_base, prices, asset_currencies, fx_rates)
+                    buy_amounts_local, sell_quantities_local = calculate_transactions(result_base, prices, asset_currencies, fx_rates)
 
                     # --- 在網頁上顯示結果 ---
                     st.header("📊 計算結果")
@@ -336,7 +335,7 @@ def web_main():
                         column = np.where(df.columns == 'Shares to buy')[0][0]
                         row = np.where(df['Ticker'] == index)[0][0] + 1
                         table.write(row, column, 0, style = table.cell(row, column).style)    
-                    if buy_amounts_local.empty and sell_quantities.empty:
+                    if buy_amounts_local.empty and sell_quantities_local.empty:
                         st.write("無需進行任何交易。")
                     else:
                         # --- 修改開始：處理買入資產的顯示 ---
@@ -370,13 +369,13 @@ def web_main():
                             st.write(display_df.round(5))
                         # --- 修改結束 ---
                         
-                        if not sell_quantities.empty:
+                        if not sell_quantities_local.empty:
                             column = np.where(df.columns == 'Shares to buy')[0][0]
-                            for index in sell_quantities.index:
+                            for index in sell_quantities_local.index:
                                 row = np.where(df['Ticker'] == index)[0][0] + 1
-                                table.write(row, column, round(-sell_quantities[index],5), style = table.cell(row, column).style)
+                                table.write(row, column, round(-sell_quantities_local[index],5), style = table.cell(row, column).style)
                             st.write("\n請賣出 (股)：")
-                            st.write(sell_quantities.round(5))
+                            st.write(sell_quantities_local.round(5))
                     #doc.save("portfolio_tracker.numbers")
                     st.write("--- 交易建議結束 ---")
                     
