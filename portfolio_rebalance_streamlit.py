@@ -165,7 +165,7 @@ def rebalance(investment_base, current_values_base, portfolio, is_withdraw, sell
     """通用再平衡計算函式。"""
 
     if is_withdraw:
-        total_asset_base = current_values_base.sum() - investment_base
+        total_asset_base = current_values_base.sum() + investment_base
         target_values = portfolio * total_asset_base
         investment_diff = target_values - current_values_base
         if buy_allowed or not any(investment_diff > 0):
