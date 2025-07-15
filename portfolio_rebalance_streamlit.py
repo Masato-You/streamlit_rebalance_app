@@ -257,111 +257,104 @@ def download_rebalanced_numbers(data_to_download):
                         mime="application/octet-stream"
                     )
 
-@st.fragment()    
-def create_portfolio_line_chart(tickers_list: list, quantities_array: np.ndarray) -> go.Figure:
+@st.fragment()
+def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray) -> tuple[go.Figure, go.Figure]:
     """
-    計算整個投資組合近一年的每日總價值（以台幣計價），並繪製成折線圖。
-
-    Args:
-        tickers_list (list): 投資組合中所有資產的代號列表。
-        quantities_array (np.ndarray): 對應 tickers_list 的持有股數陣列。
+    計算投資組合總價值與累積績效，並產生兩張對應的圖表。
 
     Returns:
-        go.Figure: 一個 Plotly Figure 物件，可用於 st.plotly_chart()。
+        (go.Figure, go.Figure): 一個包含 (總價值圖, 累積績效圖) 的元組。
     """
     st.spinner("正在產生投資組合總資產近一年走勢圖...")
 
-    # 將股數轉換為一個方便查找的字典
     quantities_dict = dict(zip(tickers_list, quantities_array))
 
-    # --- 1. 獲取所有資產和匯率數據 ---
-    # 獲取所有資產近一年的每日收盤價
     try:
-        asset_prices_hist = yf.Tickers(' '.join(tickers_list)).history(period="1y", interval="1d")['Close']
+        asset_prices_hist = yf.Tickers(' '.join(tickers_list)).history(period="1y", interval="1d")['Close'].ffill()
         if asset_prices_hist.empty:
             raise ValueError("無法獲取任何資產的歷史價格。")
-        # 向前填充以處理假日等缺失值
-        asset_prices_hist = asset_prices_hist.ffill()
     except Exception as e:
         st.error(f"獲取資產歷史價格時出錯: {e}")
-        return go.Figure()
-
-    # 使用我們已有的函式來獲取貨幣和匯率資訊
-    # 注意：這裡我們只用它來獲取貨幣對照表和匯率，而不是價格
-    _, asset_currencies, fx_rates = get_asset_and_fx_data(tickers_list)
+        return go.Figure(), go.Figure()
     
-    # 我們需要的是對台幣的匯率，需要重新獲取
+    # (此處的貨幣與匯率獲取邏輯與前一版相同，為求簡潔省略，實際請保留)
+    # ... (get_asset_and_fx_data 應該在主流程中被呼叫一次即可)
+    # 假設我們已經從主流程獲得了 asset_currencies 和一個包含對台幣匯率的 twd_fx_rates 字典
+    
+    # --- 為了讓此函式能獨立運作，我們再次獲取匯率數據 ---
+    # 實際應用中，可以將 asset_currencies 和 twd_fx_rates 作為參數傳入以提高效率
+    _, asset_currencies, _ = get_asset_and_fx_data(tickers_list)
     twd_fx_rates = {}
     currencies_to_twd = {c for c in asset_currencies.values() if c != 'TWD'}
-    
     if currencies_to_twd:
         fx_tickers_to_twd = [f"{c}TWD=X" for c in currencies_to_twd]
         try:
-            twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(period="1y", interval="1d")['Close']
-            if twd_fx_hist.empty:
-                raise ValueError("無法獲取對台幣的匯率數據。")
-            twd_fx_hist = twd_fx_hist.ffill()
+            twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(period="1y", interval="1d")['Close'].ffill()
+            if twd_fx_hist.empty: raise ValueError("無法獲取對台幣的匯率數據。")
             for fx_ticker in fx_tickers_to_twd:
                 currency_code = fx_ticker.replace("TWD=X", "")
                 twd_fx_rates[currency_code] = twd_fx_hist[fx_ticker]
-        except Exception as e:
-            st.error(f"獲取對台幣匯率時出錯: {e}")
-            return go.Figure()
+        except Exception:
+            st.warning("部分匯率數據獲取失敗，可能影響總值計算。")
 
-    # --- 2. 逐日計算總資產 ---
-    # 建立一個空的 DataFrame 來存放每日以 TWD 計價的各資產價值
+
     daily_values_twd = pd.DataFrame(index=asset_prices_hist.index)
-
     for ticker in tickers_list:
         native_currency = asset_currencies.get(ticker, 'USD')
-        
-        # 獲取當日價格序列
         prices_native = asset_prices_hist[ticker]
-        
-        # 計算以原始貨幣計價的每日價值
         daily_value_native = prices_native * quantities_dict[ticker]
         
-        # 換算成台幣
         if native_currency == 'TWD':
             daily_values_twd[ticker] = daily_value_native
         elif native_currency in twd_fx_rates:
             fx_rate_series = twd_fx_rates[native_currency]
-            # 合併並填充，確保每個價格都有對應匯率
             temp_df = pd.concat([daily_value_native.rename('value'), fx_rate_series.rename('rate')], axis=1).ffill()
             daily_values_twd[ticker] = temp_df['value'] * temp_df['rate']
         else:
             st.warning(f"缺少 {native_currency} 對 TWD 的匯率，資產 {ticker} 將不被計入總值。")
             daily_values_twd[ticker] = 0
             
-    # 將每日所有資產的 TWD 價值相加，得到每日總資產
-    # dropna() 確保加總時忽略因數據不足產生的空值
     total_portfolio_value = daily_values_twd.sum(axis=1).dropna()
 
     if total_portfolio_value.empty:
         st.error("計算總資產價值失敗，可能是由於數據不足。")
-        return go.Figure()
+        return go.Figure(), go.Figure()
 
-    # --- 3. 使用 Plotly 繪製折線圖 ---
-    fig = go.Figure()
-    
-    fig.add_trace(go.Scatter(
-        x=total_portfolio_value.index,
-        y=total_portfolio_value.values,
-        mode='lines',
-        name='總資產',
-        line=dict(color='deepskyblue', width=2)
+    # --- 圖表一：總資產價值 (TWD) ---
+    fig_value = go.Figure()
+    fig_value.add_trace(go.Scatter(
+        x=total_portfolio_value.index, y=total_portfolio_value,
+        mode='lines', name='總資產', line=dict(color='deepskyblue', width=2)
     ))
-
-    fig.update_layout(
+    # --- 改進 1：動態調整 Y 軸範圍 ---
+    y_min = total_portfolio_value.min() * 0.98
+    y_max = total_portfolio_value.max() * 1.02
+    fig_value.update_layout(
         title='投資組合總資產近一年走勢 (以台幣計價)',
-        yaxis_title='總資產價值 (TWD)',
-        xaxis_title='日期',
-        template='plotly_dark',
-        height=500,
-        yaxis_tickformat=',.0f' # 將 y 軸格式化，加上千分位符號
+        yaxis_title='總資產價值 (TWD)', xaxis_title='日期',
+        template='plotly_dark', height=500, yaxis_tickformat=',.0f',
+        yaxis=dict(range=[y_min, y_max]) # <-- 設定 Y 軸範圍
+    )
+
+    # --- 圖表二：累積績效 (%) ---
+    start_value = total_portfolio_value.iloc[0]
+    performance_pct = (total_portfolio_value / start_value - 1) * 100
+    
+    fig_perf = go.Figure()
+    fig_perf.add_trace(go.Scatter(
+        x=performance_pct.index, y=performance_pct,
+        mode='lines', name='累積績效', line=dict(color='lightgreen', width=2),
+        fill='tozeroy', fillcolor='rgba(144, 238, 144, 0.2)' # 加上面積填充
+    ))
+    fig_perf.update_layout(
+        title='投資組合累積績效 (%)',
+        yaxis_title='績效 (%)', xaxis_title='日期',
+        template='plotly_dark', height=500,
+        yaxis_ticksuffix=' %' # 在 Y 軸加上 % 符號
     )
     
-    return fig
+    return fig_value, fig_perf
+
 # --- Streamlit 網頁應用主體 ---
 def web_main():
     # 設定網頁標題和說明
@@ -413,10 +406,16 @@ def web_main():
         st.subheader("--- 總資產走勢圖 ---")
                     
         # 呼叫我們新寫的函式，傳入整個投資組合的資訊
-        portfolio_fig = create_portfolio_line_chart(tickers_list, quantities)
-        
-        # 在網頁上顯示圖表
-        st.plotly_chart(portfolio_fig, use_container_width=True)
+        fig_value, fig_perf = create_portfolio_charts(tickers_list, quantities)
+
+        # --- 改進 2：使用 st.tabs 建立分頁 ---
+        tab1, tab2 = st.tabs(["總資產價值 (TWD)", "累積績效 (%)"])
+
+        with tab1:
+            st.plotly_chart(fig_value, use_container_width=True)
+
+        with tab2:
+            st.plotly_chart(fig_perf, use_container_width=True)
 
         # 2. 互動式輸入元件
         st.header("設定再平衡參數")
