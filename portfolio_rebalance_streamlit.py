@@ -9,7 +9,7 @@ import os
 from numbers_parser import Document, NegativeNumberStyle # <-- 加入 NegativeNumberStyle
 from io import BytesIO
 import plotly.graph_objects as go
-#test
+
 # dataframe 中英文對齊設定
 pd.set_option('display.unicode.ambiguous_as_wide', True)
 pd.set_option('display.unicode.east_asian_width', True)
