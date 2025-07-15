@@ -23,7 +23,7 @@ sns.set_theme()
 
 def load_data_from_numbers(filename="portfolio_tracker.numbers"):
     """從 Apple Numbers 檔案中讀取投資組合數據。"""
-    st.write(f"正在從 '{filename}' 讀取數據...")
+    st.spinner(f"正在從 '{filename}' 讀取數據...")
     try:
         doc = Document(filename)
         table = doc.sheets[0].tables[0]
@@ -105,7 +105,7 @@ def get_asset_and_fx_data(tickers_list):
         unique_currencies.add(currency)
     # --- 修改結束 ---
 
-    st.write(f"偵測到資產貨幣: {list(unique_currencies)}")
+    st.spinner(f"偵測到資產貨幣: {list(unique_currencies)}")
     
     fx_tickers_to_fetch = [f"{c}=X" for c in unique_currencies if c != BASE_CURRENCY]
     fx_rates = {BASE_CURRENCY: 1.0}
