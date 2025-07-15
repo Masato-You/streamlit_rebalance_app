@@ -76,7 +76,7 @@ def get_asset_and_fx_data(tickers_list):
     """
     獲取所有資產的價格、貨幣資訊，以及所有需要的匯率（使用更穩健的混合模式）。
     """
-    st.write("\n正在從 Yahoo Finance 獲取資產數據...")
+    st.spinner("\n正在從 Yahoo Finance 獲取資產數據...")
     tickers_str = ' '.join(tickers_list)
     tickers = yf.Tickers(tickers_str)
     
@@ -449,14 +449,21 @@ def web_main():
                     except KeyError:
                         st.warning("警告：Numbers 檔案中未找到 'Shares to buy' 欄位，無法將建議寫回檔案。")
 
-                    # 將更新後的 doc 物件存入記憶體緩衝區
-                    output_buffer = BytesIO()
-                    doc.save(output_buffer)
-                    output_buffer.seek(0)
+                    # --- 核心修正處 ---
+                    # 1. 定義一個新的暫存檔路徑，用於儲存結果
+                    output_temp_path = "temp_rebalanced_output.numbers"
+                    
+                    # 2. 將修改後的 doc 物件，儲存到這個暫存檔路徑
+                    doc.save(output_temp_path)
+
+                    # 3. 從剛剛存好的暫存檔中，將內容讀取為位元組(bytes)
+                    with open(output_temp_path, "rb") as f:
+                        data_to_download = f.read()
+                    # --- 核心修正結束 ---
 
                     st.download_button(
                         label="📥 點此下載包含交易建議的 Numbers 檔案",
-                        data=output_buffer,
+                        data=data_to_download, # 使用從暫存檔讀取出的位元組
                         file_name="rebalanced_portfolio.numbers",
                         mime="application/octet-stream"
                     )
