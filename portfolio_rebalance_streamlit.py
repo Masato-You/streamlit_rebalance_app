@@ -249,7 +249,7 @@ def invest_withdraw():
 
 
 @st.fragment()
-def download_rebalanced_numbers()
+def download_rebalanced_numbers():
     st.download_button(
                         label="📥 點此下載包含交易建議的 Numbers 檔案",
                         data=data_to_download, # 使用從暫存檔讀取出的位元組
