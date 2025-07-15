@@ -411,47 +411,52 @@ def web_main():
                     )
                     st.pyplot(fig)
 
-                    # --- 功能 2: 產生並下載結果檔 (已修正) ---
+                    # --- 功能 2: 產生並下載結果檔 (已加入儲存格格式化) ---
                     st.subheader("--- 下載更新後的檔案 ---")
                     
-                    # 將交易建議寫入 numbers_parser 的 table 物件
-                    # (此處的寫入邏輯與您原本的相同)
                     try:
                         shares_to_buy_col_index = df.columns.get_loc('Shares to buy')
                         # 先清空舊資料
                         for i in range(len(df)):
-                            table.write(i + 1, shares_to_buy_col_index, 0)
+                            row_index = i + 1
+                            table.write(row_index, shares_to_buy_col_index, 0)
+                            # 順便設定預設格式
+                            table.set_cell_formatting(
+                                row_index, shares_to_buy_col_index, "number", decimal_places=5
+                            )
 
-                        # 寫入買入建議
+                        # 寫入買入建議並設定格式
                         if 'buy_df' in locals() and buy_df is not None:
                             for ticker, row_data in buy_df.iterrows():
-                                row_index = df[df['Ticker'] == ticker].index[0]
-                                table.write(row_index + 1, shares_to_buy_col_index, row_data['Shares_to_Buy'])
+                                row_index = df[df['Ticker'] == ticker].index[0] + 1
+                                shares_value = row_data['Shares_to_Buy']
+                                table.write(row_index, shares_to_buy_col_index, shares_value)
+                                table.set_cell_formatting(
+                                    row_index, shares_to_buy_col_index, "number", decimal_places=5
+                                )
                         
-                        # 寫入賣出建議 (以負數表示)
+                        # 寫入賣出建議並設定格式 (以負數表示)
                         if 'sell_df' in locals() and sell_df is not None:
                             for ticker, row_data in sell_df.iterrows():
-                                row_index = df[df['Ticker'] == ticker].index[0]
-                                table.write(row_index + 1, shares_to_buy_col_index, -row_data['建議賣出股數'])
+                                row_index = df[df['Ticker'] == ticker].index[0] + 1
+                                shares_value = -row_data['建議賣出股數'] # 賣出寫為負數
+                                table.write(row_index, shares_to_buy_col_index, shares_value)
+                                table.set_cell_formatting(
+                                    row_index, shares_to_buy_col_index, "number", 
+                                    decimal_places=5,
+                                    negative_style=NegativeNumberStyle.RED # 讓負數顯示為紅色
+                                )
                     except KeyError:
                         st.warning("警告：Numbers 檔案中未找到 'Shares to buy' 欄位，無法將建議寫回檔案。")
 
-
-                    # --- 核心修正處 ---
-                    # 1. 定義一個新的暫存檔路徑，用於儲存結果
-                    output_temp_path = "temp_rebalanced_output.numbers"
-                    
-                    # 2. 將修改後的 doc 物件，儲存到這個暫存檔路徑
-                    doc.save(output_temp_path)
-
-                    # 3. 從剛剛存好的暫存檔中，將內容讀取為位元組(bytes)
-                    with open(output_temp_path, "rb") as f:
-                        data_to_download = f.read()
-                    # --- 核心修正結束 ---
+                    # 將更新後的 doc 物件存入記憶體緩衝區
+                    output_buffer = BytesIO()
+                    doc.save(output_buffer)
+                    output_buffer.seek(0)
 
                     st.download_button(
                         label="📥 點此下載包含交易建議的 Numbers 檔案",
-                        data=data_to_download, # 使用從暫存檔讀取出的位元組
+                        data=output_buffer,
                         file_name="rebalanced_portfolio.numbers",
                         mime="application/octet-stream"
                     )
