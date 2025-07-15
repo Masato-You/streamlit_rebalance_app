@@ -111,7 +111,7 @@ def get_asset_and_fx_data(tickers_list):
     fx_rates = {BASE_CURRENCY: 1.0}
     
     if fx_tickers_to_fetch:
-        st.write(f"正在獲取匯率: {fx_tickers_to_fetch}")
+        st.spinner(f"正在獲取匯率: {fx_tickers_to_fetch}")
         fx_data = yf.Tickers(' '.join(fx_tickers_to_fetch))
         for fx_ticker in fx_tickers_to_fetch:
             currency_code = fx_ticker.replace("=X", "")
@@ -126,7 +126,7 @@ def get_asset_and_fx_data(tickers_list):
     
     prices = tickers.history(period='5d')['Close'].ffill().iloc[-1]
     prices = prices.reindex(tickers_list)
-    st.write("資產數據與匯率獲取完成。")
+    st.success("資產數據與匯率獲取完成。")
     return prices, asset_currencies, fx_rates
 
 def get_investment_amounts(supported_currencies, fx_rates):
@@ -411,40 +411,53 @@ def web_main():
                     )
                     st.pyplot(fig)
 
-                    # --- 功能 2: 產生並下載結果檔 ---
+                    # --- 功能 2: 產生並下載結果檔 (已修正) ---
                     st.subheader("--- 下載更新後的檔案 ---")
                     
                     # 將交易建議寫入 numbers_parser 的 table 物件
-                    # 先清空舊資料
-                    shares_to_buy_col_index = df.columns.get_loc('Shares to buy')
-                    for i in range(len(df)):
-                        table.write(i + 1, shares_to_buy_col_index, 0) # i+1 to skip header
+                    # (此處的寫入邏輯與您原本的相同)
+                    try:
+                        shares_to_buy_col_index = df.columns.get_loc('Shares to buy')
+                        # 先清空舊資料
+                        for i in range(len(df)):
+                            table.write(i + 1, shares_to_buy_col_index, 0)
 
-                    # 寫入買入建議
-                    if 'buy_df' in locals() and buy_df is not None:
-                        for ticker, row_data in buy_df.iterrows():
-                            row_index = df[df['Ticker'] == ticker].index[0]
-                            table.write(row_index + 1, shares_to_buy_col_index, row_data['Shares_to_Buy'])
+                        # 寫入買入建議
+                        if 'buy_df' in locals() and buy_df is not None:
+                            for ticker, row_data in buy_df.iterrows():
+                                row_index = df[df['Ticker'] == ticker].index[0]
+                                table.write(row_index + 1, shares_to_buy_col_index, row_data['Shares_to_Buy'])
+                        
+                        # 寫入賣出建議 (以負數表示)
+                        if 'sell_df' in locals() and sell_df is not None:
+                            for ticker, row_data in sell_df.iterrows():
+                                row_index = df[df['Ticker'] == ticker].index[0]
+                                table.write(row_index + 1, shares_to_buy_col_index, -row_data['建議賣出股數'])
+                    except KeyError:
+                        st.warning("警告：Numbers 檔案中未找到 'Shares to buy' 欄位，無法將建議寫回檔案。")
+
+
+                    # --- 核心修正處 ---
+                    # 1. 定義一個新的暫存檔路徑，用於儲存結果
+                    output_temp_path = "temp_rebalanced_output.numbers"
                     
-                    # 寫入賣出建議 (以負數表示)
-                    if 'sell_df' in locals() and sell_df is not None:
-                        for ticker, row_data in sell_df.iterrows():
-                            row_index = df[df['Ticker'] == ticker].index[0]
-                            table.write(row_index + 1, shares_to_buy_col_index, -row_data['建議賣出股數'])
+                    # 2. 將修改後的 doc 物件，儲存到這個暫存檔路徑
+                    doc.save(output_temp_path)
 
-                    # 將更新後的 doc 物件存入記憶體緩衝區
-                    output_buffer = BytesIO()
-                    doc.save(output_buffer)
-                    output_buffer.seek(0)
+                    # 3. 從剛剛存好的暫存檔中，將內容讀取為位元組(bytes)
+                    with open(output_temp_path, "rb") as f:
+                        data_to_download = f.read()
+                    # --- 核心修正結束 ---
 
                     st.download_button(
                         label="📥 點此下載包含交易建議的 Numbers 檔案",
-                        data=output_buffer,
+                        data=data_to_download, # 使用從暫存檔讀取出的位元組
                         file_name="rebalanced_portfolio.numbers",
                         mime="application/octet-stream"
                     )
 
                     st.success("全部流程完成！")
+
                 except Exception as e:
                     st.error(f"計算過程中發生錯誤：{e}")
 
