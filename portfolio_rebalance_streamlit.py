@@ -470,8 +470,13 @@ def web_main():
                         data_to_download = f.read()
                     # --- 核心修正結束 ---
 
-                    download_rebalanced_numbers()
-
+                    @st.fragment()
+                    st.download_button(
+                        label="📥 點此下載包含交易建議的 Numbers 檔案",
+                        data=data_to_download, # 使用從暫存檔讀取出的位元組
+                        file_name="rebalanced_portfolio.numbers",
+                        mime="application/octet-stream"
+                    )
                     st.success("全部流程完成！")
 
                 except Exception as e:
