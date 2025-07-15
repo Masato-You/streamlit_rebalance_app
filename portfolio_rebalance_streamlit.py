@@ -240,13 +240,22 @@ def _draw_single_donut(ax, current_ratios, target_ratios, title):
     center_hole = plt.Circle((0,0), center_hole_radius, facecolor=bg_color, linestyle=''); ax.add_patch(center_hole)
     ax.set_xlim(-1.4, 1.4); ax.set_ylim(-1.4, 1.4); ax.axis('off')
 
-@st.fragment
+@st.fragment()
 def invest_withdraw():
     twd_invest = st.number_input("台幣 (TWD)", value=0)
     usd_invest = st.number_input("美金 (USD)", value=0.00, format="%.2f")
     jpy_invest = st.number_input("日圓 (JPY)", value=0)
     return twd_invest, usd_invest, jpy_invest
 
+
+@st.fragment()
+def download_rebalanced_numbers()
+    st.download_button(
+                        label="📥 點此下載包含交易建議的 Numbers 檔案",
+                        data=data_to_download, # 使用從暫存檔讀取出的位元組
+                        file_name="rebalanced_portfolio.numbers",
+                        mime="application/octet-stream"
+                    )
 # --- Streamlit 網頁應用主體 ---
 def web_main():
     # 設定網頁標題和說明
@@ -461,12 +470,7 @@ def web_main():
                         data_to_download = f.read()
                     # --- 核心修正結束 ---
 
-                    st.download_button(
-                        label="📥 點此下載包含交易建議的 Numbers 檔案",
-                        data=data_to_download, # 使用從暫存檔讀取出的位元組
-                        file_name="rebalanced_portfolio.numbers",
-                        mime="application/octet-stream"
-                    )
+                    download_rebalanced_numbers()
 
                     st.success("全部流程完成！")
 
