@@ -470,7 +470,7 @@ def web_main():
                         data_to_download = f.read()
                     # --- 核心修正結束 ---
 
-                    download_rebalance_numbers(data_to_download)
+                    download_rebalanced_numbers(data_to_download)
                     
                     st.success("全部流程完成！")
 
