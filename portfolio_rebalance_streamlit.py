@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import seaborn as sns
 import os
-from numbers_parser import Document
+from numbers_parser import Document, NegativeNumberStyle # <-- 加入 NegativeNumberStyle
 from io import BytesIO
 
 
