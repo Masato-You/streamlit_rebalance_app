@@ -269,7 +269,7 @@ def create_portfolio_line_chart(tickers_list: list, quantities_array: np.ndarray
     Returns:
         go.Figure: 一個 Plotly Figure 物件，可用於 st.plotly_chart()。
     """
-    st.info("正在產生投資組合總資產近一年走勢圖...")
+    st.spinner("正在產生投資組合總資產近一年走勢圖...")
 
     # 將股數轉換為一個方便查找的字典
     quantities_dict = dict(zip(tickers_list, quantities_array))
@@ -417,7 +417,7 @@ def web_main():
         
         # 在網頁上顯示圖表
         st.plotly_chart(portfolio_fig, use_container_width=True)
-        
+
         # 2. 互動式輸入元件
         st.header("設定再平衡參數")
 
