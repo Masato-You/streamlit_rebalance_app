@@ -9,6 +9,8 @@ import os
 from numbers_parser import Document, NegativeNumberStyle # <-- 加入 NegativeNumberStyle
 from io import BytesIO
 import plotly.graph_objects as go
+from datetime import date
+from dateutil.relativedelta import relativedelta # 需要 pip install python-dateutil
 
 # dataframe 中英文對齊設定
 pd.set_option('display.unicode.ambiguous_as_wide', True)
@@ -260,58 +262,60 @@ def download_rebalanced_numbers(data_to_download):
 @st.fragment()
 def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray) -> tuple[go.Figure, go.Figure]:
     """
-    計算投資組合總價值與累積績效，並產生兩張對應的圖表。
+    計算投資組合總價值與累積績效，並產生兩張對應的圖表（已加入前期數據緩衝以處理開頭缺值問題）。
 
     Returns:
         (go.Figure, go.Figure): 一個包含 (總價值圖, 累積績效圖) 的元組。
     """
-    st.spinner("正在產生投資組合總資產近一年走勢圖...")
+    st.info("正在產生投資組合總資產近一年走勢圖...")
 
     quantities_dict = dict(zip(tickers_list, quantities_array))
 
+    # --- 改進 1: 獲取 13 個月的數據作為緩衝 ---
+    end_date = date.today()
+    start_date_padded = end_date - relativedelta(months=13)
+    start_date_actual = end_date - relativedelta(years=1)
+    
     try:
-        asset_prices_hist = yf.Tickers(' '.join(tickers_list)).history(period="1y", interval="1d")['Close'].ffill()
+        # 使用 start 和 end 參數獲取指定區間數據
+        asset_prices_hist = yf.Tickers(' '.join(tickers_list)).history(start=start_date_padded, end=end_date, interval="1d")['Close'].ffill()
         if asset_prices_hist.empty:
             raise ValueError("無法獲取任何資產的歷史價格。")
     except Exception as e:
         st.error(f"獲取資產歷史價格時出錯: {e}")
         return go.Figure(), go.Figure()
-    
-    # (此處的貨幣與匯率獲取邏輯與前一版相同，為求簡潔省略，實際請保留)
-    # ... (get_asset_and_fx_data 應該在主流程中被呼叫一次即可)
-    # 假設我們已經從主流程獲得了 asset_currencies 和一個包含對台幣匯率的 twd_fx_rates 字典
-    
-    # --- 為了讓此函式能獨立運作，我們再次獲取匯率數據 ---
-    # 實際應用中，可以將 asset_currencies 和 twd_fx_rates 作為參數傳入以提高效率
+
     _, asset_currencies, _ = get_asset_and_fx_data(tickers_list)
     twd_fx_rates = {}
     currencies_to_twd = {c for c in asset_currencies.values() if c != 'TWD'}
     if currencies_to_twd:
         fx_tickers_to_twd = [f"{c}TWD=X" for c in currencies_to_twd]
         try:
-            twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(period="1y", interval="1d")['Close'].ffill()
+            twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(start=start_date_padded, end=end_date, interval="1d")['Close'].ffill()
             if twd_fx_hist.empty: raise ValueError("無法獲取對台幣的匯率數據。")
             for fx_ticker in fx_tickers_to_twd:
                 currency_code = fx_ticker.replace("TWD=X", "")
-                twd_fx_rates[currency_code] = twd_fx_hist[fx_ticker]
+                twd_fx_rates[currency_code] = twd_fx_hist.get(fx_ticker)
         except Exception:
             st.warning("部分匯率數據獲取失敗，可能影響總值計算。")
 
-
     daily_values_twd = pd.DataFrame(index=asset_prices_hist.index)
     for ticker in tickers_list:
+        if ticker not in asset_prices_hist.columns:
+            st.warning(f"缺少 {ticker} 的價格數據，將從總值計算中忽略。")
+            continue
+            
         native_currency = asset_currencies.get(ticker, 'USD')
         prices_native = asset_prices_hist[ticker]
         daily_value_native = prices_native * quantities_dict[ticker]
         
         if native_currency == 'TWD':
             daily_values_twd[ticker] = daily_value_native
-        elif native_currency in twd_fx_rates:
+        elif native_currency in twd_fx_rates and twd_fx_rates[native_currency] is not None:
             fx_rate_series = twd_fx_rates[native_currency]
             temp_df = pd.concat([daily_value_native.rename('value'), fx_rate_series.rename('rate')], axis=1).ffill()
             daily_values_twd[ticker] = temp_df['value'] * temp_df['rate']
         else:
-            st.warning(f"缺少 {native_currency} 對 TWD 的匯率，資產 {ticker} 將不被計入總值。")
             daily_values_twd[ticker] = 0
             
     total_portfolio_value = daily_values_twd.sum(axis=1).dropna()
@@ -320,37 +324,46 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray) ->
         st.error("計算總資產價值失敗，可能是由於數據不足。")
         return go.Figure(), go.Figure()
 
+    # --- 改進 2: 計算完成後，將數據裁切回近一年 ---
+    total_portfolio_value_oneyear = total_portfolio_value[total_portfolio_value.index.date >= start_date_actual]
+
     # --- 圖表一：總資產價值 (TWD) ---
     fig_value = go.Figure()
     fig_value.add_trace(go.Scatter(
-        x=total_portfolio_value.index, y=total_portfolio_value,
+        x=total_portfolio_value_oneyear.index, y=total_portfolio_value_oneyear,
         mode='lines', name='總資產', line=dict(color='deepskyblue', width=2)
     ))
-    # --- 改進 1：動態調整 Y 軸範圍 ---
-    y_min = total_portfolio_value.min() * 0.98
-    y_max = total_portfolio_value.max() * 1.02
+    y_min = total_portfolio_value_oneyear.min() * 0.98
+    y_max = total_portfolio_value_oneyear.max() * 1.02
     fig_value.update_layout(
         title='投資組合總資產近一年走勢 (以台幣計價)',
         yaxis_title='總資產價值 (TWD)', xaxis_title='日期',
         template='plotly_dark', height=500, yaxis_tickformat=',.0f',
-        yaxis=dict(range=[y_min, y_max]) # <-- 設定 Y 軸範圍
+        yaxis=dict(range=[y_min, y_max])
     )
 
     # --- 圖表二：累積績效 (%) ---
-    start_value = total_portfolio_value.iloc[0]
-    performance_pct = (total_portfolio_value / start_value - 1) * 100
-    
+    # --- 改進 3: 使用一年前的數據作為績效計算的起點 ---
+    if not total_portfolio_value_oneyear.empty:
+        start_value = total_portfolio_value_oneyear.iloc[0]
+        # 績效仍然在完整的序列上計算，以確保平滑，然後再裁切
+        performance_pct = (total_portfolio_value / start_value - 1) * 100 if start_value != 0 else 0
+        performance_pct_oneyear = performance_pct[performance_pct.index.date >= start_date_actual]
+    else:
+        performance_pct_oneyear = pd.Series() # 創建空的 Series 避免錯誤
+
     fig_perf = go.Figure()
-    fig_perf.add_trace(go.Scatter(
-        x=performance_pct.index, y=performance_pct,
-        mode='lines', name='累積績效', line=dict(color='lightgreen', width=2),
-        fill='tozeroy', fillcolor='rgba(144, 238, 144, 0.2)' # 加上面積填充
-    ))
+    if not performance_pct_oneyear.empty:
+        fig_perf.add_trace(go.Scatter(
+            x=performance_pct_oneyear.index, y=performance_pct_oneyear,
+            mode='lines', name='累積績效', line=dict(color='lightgreen', width=2),
+            fill='tozeroy', fillcolor='rgba(144, 238, 144, 0.2)'
+        ))
     fig_perf.update_layout(
         title='投資組合累積績效 (%)',
         yaxis_title='績效 (%)', xaxis_title='日期',
         template='plotly_dark', height=500,
-        yaxis_ticksuffix=' %' # 在 Y 軸加上 % 符號
+        yaxis_ticksuffix=' %'
     )
     
     return fig_value, fig_perf
