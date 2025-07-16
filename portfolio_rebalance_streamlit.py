@@ -381,19 +381,16 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     if not performance_pct_oneyear.empty:
         # Define segments and colors based on a condition (e.g., y-value)
         threshold = 0
-        x=performance_pct_oneyear.index
         y=performance_pct_oneyear
-        segment1_x = x[y < threshold]
-        segment1_y = y[y < threshold]
-        segment2_x = x[y >= threshold]
-        segment2_y = y[y >= threshold]
-        fig_perf.add_trace(go.Scatter(x=segment1_x, y=segment1_y,
+        segment1_y = [None if y >= threshold else i for i in y]
+        segment2_y = [None if y < threshold else i for i in y]
+        fig_perf.add_trace(go.Scatter(x=performance_pct_oneyear.index, y=segment1_y,
             mode='lines', name='累積績效', line=dict(color='lightgreen', width=2),
-            fill='tozeroy', fillgradient=dict(colorscale='greens', type='vertical')
+            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical', showlegend=False)
         ))
-        fig_perf.add_trace(go.Scatter(x=segment2_x, y=segment2_y,
+        fig_perf.add_trace(go.Scatter(x=performance_pct_oneyear.index, y=segment2_y,
             mode='lines',line=dict(color='red', width=2),
-            fill='tozeroy', fillgradient=dict(colorscale='reds', type='vertical')
+            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical', showlegend=False)
             ))
     fig_perf.update_layout(
         title='投資組合累積績效 (%)',
