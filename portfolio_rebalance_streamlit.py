@@ -372,7 +372,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     if not total_portfolio_value_oneyear.empty:
         start_value = total_portfolio_value_oneyear.iloc[0]
         # 績效仍然在完整的序列上計算，以確保平滑，然後再裁切
-        performance_pct = (total_portfolio_value / start_value - 1) * 100 if start_value != 0 else 0
+        performance_pct = (total_portfolio_value / (start_value+1) - 1) * 100 
         st.write(performance_pct)
         st.write(total_portfolio_value)
         performance_pct_oneyear = performance_pct[performance_pct.index.date >= start_date_actual]
