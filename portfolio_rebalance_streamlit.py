@@ -354,13 +354,9 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
 
     # --- 圖表一：總資產價值 (TWD) ---
     fig_value = go.Figure()
-    threshold = 0
-    color_key = 'lightcoral'
-    if performance_pct_oneyear[-1] < threshold:
-        color_key = 'lightgreen'
     fig_value.add_trace(go.Scatter(
         x=total_portfolio_value_oneyear.index, y=total_portfolio_value_oneyear,
-        mode='lines', name='總資產', line=dict(color='color_key', width=2), fill='tozeroy'
+        mode='lines', name='總資產', line=dict(color='deepskyblue', width=2), fill='tozeroy'
     ))
     y_min = total_portfolio_value_oneyear.min() * 0.98
     y_max = total_portfolio_value_oneyear.max() * 1.02
@@ -383,6 +379,10 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
 
     fig_perf = go.Figure()
     if not performance_pct_oneyear.empty:
+        threshold = 0
+        color_key = 'lightcoral'
+        if performance_pct_oneyear[-1] < threshold:
+            color_key = 'lightgreen'
         gradient_start_stop = performance_pct_oneyear.abs().max()*0.6
         fig_perf.add_trace(go.Scatter(x=performance_pct_oneyear.index, y=performance_pct_oneyear,
             mode='lines', name='累積績效', line=dict(color=color_key, width=2),
