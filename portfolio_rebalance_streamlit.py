@@ -449,11 +449,11 @@ def web_main():
                       6: '六個月',
                       12: '一年',
                       36: '三年'}
-        #select = st.pills('時間範圍', options = option_map.keys(), 
-        #                  format_func=lambda option: option_map[option], selection_mode='single')
-        #if select is None:
-        #    select = 6
-        select = 6
+        select = st.pills('時間範圍', options = option_map.keys(), 
+                           selection_mode='single')
+        #format_func=lambda option: option_map[option]
+        if select is None:
+            select = 6
         # 將獲取的貨幣對照表傳遞給繪圖函式
         fig_value, fig_perf = create_portfolio_charts(tickers_list, quantities, asset_currencies, select, option_map)
         # --- 改進 2：使用 st.tabs 建立分頁 ---
