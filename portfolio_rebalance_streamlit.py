@@ -444,6 +444,7 @@ def web_main():
             fx_rates[currency_code] = latest_prices.get(fx_ticker)
         
         st.subheader("--- 總資產走勢圖 ---")
+        st.spinner("正在產生投資組合總資產走勢圖...")
         option_map = {1: '一個月',
                       3: '三個月',
                       6: '六個月',
@@ -453,7 +454,6 @@ def web_main():
                           format_func=lambda option: option_map[option], selection_mode='single')
         if select is None:
             select = 1
-        st.spinner("正在產生投資組合總資產走勢圖...")
         # 將獲取的貨幣對照表傳遞給繪圖函式
         fig_value, fig_perf = create_portfolio_charts(tickers_list, quantities, asset_currencies, select, option_map)
         # --- 改進 2：使用 st.tabs 建立分頁 ---
