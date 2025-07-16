@@ -342,6 +342,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
             daily_values_twd[ticker] = temp_df['value'] * temp_df['rate']
         else:
             daily_values_twd[ticker] = 0
+            st.write(ticker)
             
     total_portfolio_value = daily_values_twd.sum(axis=1).dropna()
 
