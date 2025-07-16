@@ -444,7 +444,6 @@ def web_main():
             fx_rates[currency_code] = latest_prices.get(fx_ticker)
         
         st.subheader("--- 總資產走勢圖 ---")
-        st.spinner("正在產生投資組合總資產走勢圖...")
         option_map = {1: '一個月',
                       3: '三個月',
                       6: '六個月',
