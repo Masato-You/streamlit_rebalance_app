@@ -370,6 +370,12 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     
     return fig_value, fig_perf
 
+
+@st.fragment()
+def pills(option_map):
+    select = st.pills('時間範圍', options = option_map.keys(), 
+                          format_func=lambda option: option_map[option], selection_mode='single')
+    return select
 # --- Streamlit 網頁應用主體 ---
 def web_main():
     # 設定網頁標題和說明
@@ -449,8 +455,7 @@ def web_main():
                       6: '六個月',
                       12: '一年',
                       36: '三年'}
-        select = st.pills('時間範圍', options = option_map.keys(), 
-                          format_func=lambda option: option_map[option], selection_mode='single')
+        select = pills(option_map)
         if select is None:
             select = 1
         # 將獲取的貨幣對照表傳遞給繪圖函式
