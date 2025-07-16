@@ -316,7 +316,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     if currencies_to_twd:
         fx_tickers_to_twd = [f"{c}TWD=X" for c in currencies_to_twd]
         try:
-            twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(period="5d", interval="1d", back_adjust=True)['Close'].ffill()
+            twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(period="2y", interval="1d", back_adjust=True)['Close'].ffill()
             if twd_fx_hist.empty: raise ValueError("無法獲取對台幣的匯率數據。")
             for fx_ticker in fx_tickers_to_twd:
                 currency_code = fx_ticker.replace("TWD=X", "")
@@ -338,7 +338,6 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
             daily_values_twd[ticker] = daily_value_native
         elif native_currency in twd_fx_rates and twd_fx_rates[native_currency] is not None:
             fx_rate_series = twd_fx_rates[native_currency]
-            st.write(len(fx_rate_series))
             temp_df = pd.concat([daily_value_native.rename('value'), fx_rate_series.rename('rate')], axis=1).ffill()
             daily_values_twd[ticker] = temp_df['value'] * temp_df['rate']
         else:
