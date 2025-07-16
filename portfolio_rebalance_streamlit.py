@@ -381,12 +381,12 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     if not performance_pct_oneyear.empty:
         threshold = 0
         color_key = 'lightcoral'
-        gradient_start_end = performance_pct_oneyear.abs().max()
+        gradient_start_stop = performance_pct_oneyear.abs().max()
         if performance_pct_oneyear[-1] < threshold:
             color_key = 'lightgreen'
         fig_perf.add_trace(go.Scatter(x=performance_pct_oneyear.index, y=performance_pct_oneyear,
             mode='lines', name='累積績效', line=dict(color=color_key, width=2),
-            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical', start=gradient_start_end, end=-gradient_start_end),
+            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical', start=gradient_start_stop, stop=-gradient_start_stop),
                                               showlegend=False))
     fig_perf.update_layout(
         title='投資組合累積績效 (%)',
