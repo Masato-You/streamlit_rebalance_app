@@ -275,6 +275,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray) ->
     end_date = date.today()
     start_date_padded = end_date - relativedelta(months=13)
     start_date_actual = end_date - relativedelta(years=1)
+    st.write(start_date_actual)
     
     try:
         # 使用 start 和 end 參數獲取指定區間數據
