@@ -449,8 +449,8 @@ def web_main():
                       6: '六個月',
                       12: '一年',
                       36: '三年'}
-        select = st.pills(label='時間範圍', options = option_map.keys(), 
-                          format_func=lambda option: option_map[option],selection_mode='single')
+        select = st.pills('時間範圍', options = option_map.keys(), 
+                          format_func=lambda option: option_map[option], selection_mode='single')
         if select is None:
             select = 6
         # 將獲取的貨幣對照表傳遞給繪圖函式
