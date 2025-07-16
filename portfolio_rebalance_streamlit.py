@@ -304,7 +304,9 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     
     try:
         # 使用 start 和 end 參數獲取指定區間數據
+        st.write(1)
         asset_prices_hist = yf.Tickers(' '.join(tickers_list)).history(start=start_date_padded, end=end_date, interval="1d")['Close'].ffill()
+        st.write(2)
         if asset_prices_hist.empty:
             raise ValueError("無法獲取任何資產的歷史價格。")
     except Exception as e:
@@ -316,7 +318,9 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     if currencies_to_twd:
         fx_tickers_to_twd = [f"{c}TWD=X" for c in currencies_to_twd]
         try:
+            st.write(3)
             twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(start=start_date_padded, end=end_date, interval="1d")['Close'].ffill()
+            st.write(4)
             if twd_fx_hist.empty: raise ValueError("無法獲取對台幣的匯率數據。")
             for fx_ticker in fx_tickers_to_twd:
                 currency_code = fx_ticker.replace("TWD=X", "")
