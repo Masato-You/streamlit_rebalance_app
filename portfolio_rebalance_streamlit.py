@@ -381,7 +381,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     if not performance_pct_oneyear.empty:
         threshold = 0
         color_key = 'lightcoral'
-        gradient_start_stop = performance_pct_oneyear.abs().max()
+        gradient_start_stop = performance_pct_oneyear.abs().max()*0.6
         if performance_pct_oneyear[-1] < threshold:
             color_key = 'lightgreen'
         fig_perf.add_trace(go.Scatter(x=performance_pct_oneyear.index, y=performance_pct_oneyear,
