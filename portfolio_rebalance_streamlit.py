@@ -156,26 +156,7 @@ def get_currency_map(tickers_list: list) -> dict:
         asset_currencies[ticker_symbol] = currency
     #st.write(f"偵測到資產貨幣: {list(set(asset_currencies.values()))}")
     return asset_currencies
-def get_investment_amounts(supported_currencies, fx_rates):
-    """互動式詢問使用者本次投入/提領的金額，並換算成基準貨幣。"""
-    def _get_numeric_input(prompt):
-        while True:
-            try: return float(input(prompt))
-            except ValueError: st.write("無效輸入，請輸入一個數字。")
 
-    st.write("\n請輸入本次要投入/提領的金額，若需提領請輸入負值。")
-    total_investment_base_currency = 0
-    for currency in supported_currencies:
-        amount = _get_numeric_input(f"{currency} 金額: ")
-        if currency not in fx_rates:
-            st.write(f"警告: 缺少 {currency}/{BASE_CURRENCY} 匯率，此筆金額將不被計入。")
-            continue
-        total_investment_base_currency += amount / fx_rates[currency]
-        
-    if not any(c in fx_rates for c in supported_currencies):
-         st.write("警告：所有輸入貨幣的匯率均無法獲取，總投入/提領金額為0。")
-
-    return total_investment_base_currency
 
 
 def rebalance(investment_base, current_values_base, portfolio, is_withdraw, sell_allowed, buy_allowed):
@@ -275,7 +256,7 @@ def download_rebalanced_numbers(data_to_download):
                     )
 
 @st.fragment()
-def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, asset_currencies: dict) -> tuple[go.Figure, go.Figure]:
+def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, asset_currencies: dict, option, option_map) -> tuple[go.Figure, go.Figure]:
     """
     計算投資組合總價值與累積績效，並產生兩張對應的圖表（已加入前期數據緩衝以處理開頭缺值問題）。
 
@@ -286,14 +267,14 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
 
     quantities_dict = dict(zip(tickers_list, quantities_array))
 
-    # --- 改進 1: 獲取 2 年的數據作為緩衝 ---
+    # --- 改進 1: 獲取 5 年的數據作為緩衝 ---
     end_date = date.today()
-    start_date_actual = end_date - relativedelta(years=1)
+    start_date_actual = end_date - relativedelta(months=option)
     
     
     try:
         # 使用 start 和 end 參數獲取指定區間數據
-        asset_prices_hist = yf.Tickers(' '.join(tickers_list)).history(period="2y", interval="1d", back_adjust=True)['Close'].ffill()
+        asset_prices_hist = yf.Tickers(' '.join(tickers_list)).history(period="5y", interval="1d", back_adjust=True)['Close'].ffill()
         if asset_prices_hist.empty:
             raise ValueError("無法獲取任何資產的歷史價格。")
     except Exception as e:
@@ -305,7 +286,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     if currencies_to_twd:
         fx_tickers_to_twd = [f"{c}TWD=X" for c in currencies_to_twd]
         try:
-            twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(period="2y", interval="1d", back_adjust=True)['Close'].ffill()
+            twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(period="5y", interval="1d", back_adjust=True)['Close'].ffill()
             if twd_fx_hist.empty: raise ValueError("無法獲取對台幣的匯率數據。")
             for fx_ticker in fx_tickers_to_twd:
                 currency_code = fx_ticker.replace("TWD=X", "")
@@ -339,7 +320,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         st.error("計算總資產價值失敗，可能是由於數據不足。")
         return go.Figure(), go.Figure()
 
-    # --- 改進 2: 計算完成後，將數據裁切回近一年 ---
+    # --- 改進 2: 計算完成後，將數據裁切回選取期間 ---
     total_portfolio_value_oneyear = total_portfolio_value[total_portfolio_value.index.date >= start_date_actual]
 
     # --- 圖表一：總資產價值 (TWD) ---
@@ -353,7 +334,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     y_min = total_portfolio_value_oneyear.min() * 0.98
     y_max = total_portfolio_value_oneyear.max() * 1.02
     fig_value.update_layout(
-        title='投資組合總資產近一年走勢 (以台幣計價)',
+        title=f'投資組合近{option_map[option]}總資產走勢 (以台幣計價)',
         yaxis_title='總資產價值 (TWD)', xaxis_title='日期',
         template='plotly_dark', height=500, yaxis_tickformat=',.0f',
         yaxis=dict(range=[y_min, y_max])
@@ -463,11 +444,19 @@ def web_main():
             fx_rates[currency_code] = latest_prices.get(fx_ticker)
         
         st.subheader("--- 總資產走勢圖 ---")
-        # 將獲取的貨幣對照表傳遞給繪圖函式
-        fig_value, fig_perf = create_portfolio_charts(tickers_list, quantities, asset_currencies)
-
         # --- 改進 2：使用 st.tabs 建立分頁 ---
         tab1, tab2 = st.tabs(["總資產價值 (TWD)", "累積績效 (%)"])
+        option_map = {1: '一個月',
+                      3: '三個月',
+                      6: '六個月',
+                      12: '一年',
+                      36: '三年'}
+        select = st.pills(label='時間範圍', options = option_map.keys(), 
+                          format_func=lambda option: option_map[option],selection_mode='single')
+        if select is None:
+            select = 6
+        # 將獲取的貨幣對照表傳遞給繪圖函式
+        fig_value, fig_perf = create_portfolio_charts(tickers_list, quantities, asset_currencies, select, option_map)
 
         with tab1:
             st.plotly_chart(fig_value, use_container_width=True)
