@@ -381,7 +381,8 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     if not performance_pct_oneyear.empty:
         # Define segments and colors based on a condition (e.g., y-value)
         threshold = 0
-        x=performance_pct_oneyear.index, y=performance_pct_oneyear
+        x=performance_pct_oneyear.index
+        y=performance_pct_oneyear
         segment1_x = x[y < threshold]
         segment1_y = y[y < threshold]
         segment2_x = x[y >= threshold]
