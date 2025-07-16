@@ -338,7 +338,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
             daily_values_twd[ticker] = daily_value_native
         elif native_currency in twd_fx_rates and twd_fx_rates[native_currency] is not None:
             fx_rate_series = twd_fx_rates[native_currency]
-            st.write(fx_rate_series[0:100])
+            st.write(fx_rate_series[0:5])
             temp_df = pd.concat([daily_value_native.rename('value'), fx_rate_series.rename('rate')], axis=1).ffill()
             daily_values_twd[ticker] = temp_df['value'] * temp_df['rate']
         else:
