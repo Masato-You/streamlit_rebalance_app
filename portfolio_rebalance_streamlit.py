@@ -382,8 +382,8 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         # Define segments and colors based on a condition (e.g., y-value)
         threshold = 0
         y=performance_pct_oneyear
-        segment1_y = [None if y >= threshold else i for i in y]
-        segment2_y = [None if y < threshold else i for i in y]
+        segment1_y = y.mask(y >= threshold, None)
+        segment2_y = y.mask(y < threshold, None)
         fig_perf.add_trace(go.Scatter(x=performance_pct_oneyear.index, y=segment1_y,
             mode='lines', name='累積績效', line=dict(color='lightgreen', width=2),
             fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical', showlegend=False)
