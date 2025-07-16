@@ -444,21 +444,20 @@ def web_main():
             fx_rates[currency_code] = latest_prices.get(fx_ticker)
         
         st.subheader("--- 總資產走勢圖 ---")
-        # --- 改進 2：使用 st.tabs 建立分頁 ---
-        tab1, tab2 = st.tabs(["總資產價值 (TWD)", "累積績效 (%)"])
         option_map = {1: '一個月',
                       3: '三個月',
                       6: '六個月',
                       12: '一年',
                       36: '三年'}
+        select = st.pills(label='時間範圍', options = option_map.keys(), 
+                          format_func=lambda option: option_map[option],selection_mode='single')
+        if select is None:
+            select = 6
         # 將獲取的貨幣對照表傳遞給繪圖函式
         fig_value, fig_perf = create_portfolio_charts(tickers_list, quantities, asset_currencies, select, option_map)
-
+        # --- 改進 2：使用 st.tabs 建立分頁 ---
+        tab1, tab2 = st.tabs(["總資產價值 (TWD)", "累積績效 (%)"])
         with tab1:
-            select = st.pills(label='時間範圍', options = option_map.keys(), 
-                          format_func=lambda option: option_map[option],selection_mode='single')
-            if select is None:
-                select = 6
             st.plotly_chart(fig_value, use_container_width=True)
 
         with tab2:
