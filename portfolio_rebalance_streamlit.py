@@ -387,11 +387,11 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         st.write(segment2_y.head(5))
         fig_perf.add_trace(go.Scatter(x=performance_pct_oneyear.index, y=segment1_y,
             mode='lines', name='累積績效', line=dict(color='lightgreen', width=2),
-            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical', showlegend=False)
-        ))
+            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical'),
+                                              showlegend=False))
         fig_perf.add_trace(go.Scatter(x=performance_pct_oneyear.index, y=segment2_y,
             mode='lines',line=dict(color='red', width=2),
-            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical', showlegend=False)
+            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical'), showlegend=False
             ))
     fig_perf.update_layout(
         title='投資組合累積績效 (%)',
