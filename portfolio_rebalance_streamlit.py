@@ -275,7 +275,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     try:
         # 使用 start 和 end 參數獲取指定區間數據
         #隨便塞一個 yahoo finance 有提供每日價格的少見貨幣讓美元兌美元不會只有一天的價格
-        asset_prices_hist = yf.Tickers(' '.join(tickers_list+"GYDUSD=X")).history(period="5y", interval="1d", back_adjust=True)['Close'].ffill().fillna(1)
+        asset_prices_hist = yf.Tickers(' '.join(tickers_list.append("GYDUSD=X")).history(period="5y", interval="1d", back_adjust=True))['Close'].ffill().fillna(1)
         
         if asset_prices_hist.empty:
             raise ValueError("無法獲取任何資產的歷史價格。")
