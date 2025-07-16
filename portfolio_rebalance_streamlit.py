@@ -304,7 +304,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     
     try:
         # 使用 start 和 end 參數獲取指定區間數據
-        asset_prices_hist = yf.Tickers(' '.join(tickers_list)).history(period="2y", interval="1d")['Close'].ffill()
+        asset_prices_hist = yf.Tickers(' '.join(tickers_list)).history(period="2y", interval="1d", back_adjust=True)['Close'].ffill()
         if asset_prices_hist.empty:
             raise ValueError("無法獲取任何資產的歷史價格。")
     except Exception as e:
@@ -316,7 +316,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     if currencies_to_twd:
         fx_tickers_to_twd = [f"{c}TWD=X" for c in currencies_to_twd]
         try:
-            twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(period="5d", interval="1d")['Close'].ffill()
+            twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(period="5d", interval="1d", back_adjust=True)['Close'].ffill()
             if twd_fx_hist.empty: raise ValueError("無法獲取對台幣的匯率數據。")
             for fx_ticker in fx_tickers_to_twd:
                 currency_code = fx_ticker.replace("TWD=X", "")
@@ -382,7 +382,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         fig_perf.add_trace(go.Scatter(
             x=performance_pct_oneyear.index, y=performance_pct_oneyear,
             mode='lines', name='累積績效', line=dict(color='lightgreen', width=2),
-            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='radial')
+            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical')
         ))
     fig_perf.update_layout(
         title='投資組合累積績效 (%)',
