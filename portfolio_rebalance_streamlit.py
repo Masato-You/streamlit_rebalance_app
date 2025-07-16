@@ -177,16 +177,6 @@ def get_investment_amounts(supported_currencies, fx_rates):
 
     return total_investment_base_currency
 
-def get_permissions(is_withdraw):
-    """根據是提領還是投入，詢問對應的權限。"""
-    if is_withdraw:
-        st.write("\n偵測到提領操作。")
-        buy = input("提領時，是否允許買入部分資產以達成平衡？ (y/n): ").lower().strip() in ['y', 'yes']
-        return False, buy # sell=False, buy=True/False
-    else:
-        st.write("\n偵測到投入操作。")
-        sell = input("投入時，是否允許賣出部分資產以達成平衡？ (y/n): ").lower().strip() in ['y', 'yes']
-        return sell, False # sell=True/False, buy=False
 
 def rebalance(investment_base, current_values_base, portfolio, is_withdraw, sell_allowed, buy_allowed):
     """通用再平衡計算函式。"""
@@ -296,15 +286,15 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
 
     quantities_dict = dict(zip(tickers_list, quantities_array))
 
-    # --- 改進 1: 獲取 13 個月的數據作為緩衝 ---
+    # --- 改進 1: 獲取 2 年的數據作為緩衝 ---
     end_date = date.today()
-    start_date_padded = end_date - relativedelta(months=13)
     start_date_actual = end_date - relativedelta(years=1)
     
     
     try:
         # 使用 start 和 end 參數獲取指定區間數據
         asset_prices_hist = yf.Tickers(' '.join(tickers_list)).history(period="2y", interval="1d", back_adjust=True)['Close'].ffill()
+        st.write(asset_currencies)
         if asset_prices_hist.empty:
             raise ValueError("無法獲取任何資產的歷史價格。")
     except Exception as e:
@@ -320,6 +310,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
             if twd_fx_hist.empty: raise ValueError("無法獲取對台幣的匯率數據。")
             for fx_ticker in fx_tickers_to_twd:
                 currency_code = fx_ticker.replace("TWD=X", "")
+                st.write(currency_code)
                 twd_fx_rates[currency_code] = twd_fx_hist.get(fx_ticker)
         except Exception:
             st.warning("部分匯率數據獲取失敗，可能影響總值計算。")
