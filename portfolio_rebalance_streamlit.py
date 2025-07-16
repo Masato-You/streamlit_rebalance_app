@@ -340,9 +340,10 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
             fx_rate_series = twd_fx_rates[native_currency]
             temp_df = pd.concat([daily_value_native.rename('value'), fx_rate_series.rename('rate')], axis=1).ffill()
             daily_values_twd[ticker] = temp_df['value'] * temp_df['rate']
+            st.write(ticker)
         else:
             daily_values_twd[ticker] = 0
-            st.write(ticker)
+            
             
     total_portfolio_value = daily_values_twd.sum(axis=1).dropna()
 
