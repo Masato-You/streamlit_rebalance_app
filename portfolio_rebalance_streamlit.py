@@ -131,6 +131,31 @@ def get_asset_and_fx_data(tickers_list):
     #st.success("資產數據與匯率獲取完成。")
     return prices, asset_currencies, fx_rates
 
+def get_currency_map(tickers_list: list) -> dict:
+    """
+    僅獲取資產列表的計價貨幣對照表。
+    """
+    st.spinner("正在獲取資產的貨幣資訊...")
+    asset_currencies = {}
+    for ticker_symbol in tickers_list:
+        currency = None
+        # 優先根據後綴判斷
+        if ticker_symbol.endswith('.TW'):
+            currency = 'TWD'
+        # elif ticker_symbol.endswith('.T'): # 可為日股等增加規則
+        #     currency = 'JPY'
+        
+        # 若無規則匹配，再嘗試 API 查詢
+        if currency is None:
+            try:
+                currency = yf.Ticker(ticker_symbol).info.get('currency', BASE_CURRENCY).upper()
+            except Exception:
+                st.warning(f"警告：無法獲取 {ticker_symbol} 的貨幣資訊，將預設為 {BASE_CURRENCY}。")
+                currency = BASE_CURRENCY
+        
+        asset_currencies[ticker_symbol] = currency
+    #st.write(f"偵測到資產貨幣: {list(set(asset_currencies.values()))}")
+    return asset_currencies
 def get_investment_amounts(supported_currencies, fx_rates):
     """互動式詢問使用者本次投入/提領的金額，並換算成基準貨幣。"""
     def _get_numeric_input(prompt):
@@ -260,7 +285,7 @@ def download_rebalanced_numbers(data_to_download):
                     )
 
 @st.fragment()
-def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray) -> tuple[go.Figure, go.Figure]:
+def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, asset_currencies: dict) -> tuple[go.Figure, go.Figure]:
     """
     計算投資組合總價值與累積績效，並產生兩張對應的圖表（已加入前期數據緩衝以處理開頭缺值問題）。
 
@@ -279,20 +304,19 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray) ->
     
     try:
         # 使用 start 和 end 參數獲取指定區間數據
-        asset_prices_hist = yf.Tickers(' '.join(tickers_list)).history(start=start_date_padded, end=end_date)['Close'].ffill()
+        asset_prices_hist = yf.Tickers(' '.join(tickers_list)).history(start=start_date_padded, end=end_date, interval="1d")['Close'].ffill()
         if asset_prices_hist.empty:
             raise ValueError("無法獲取任何資產的歷史價格。")
     except Exception as e:
         st.error(f"獲取資產歷史價格時出錯: {e}")
         return go.Figure(), go.Figure()
 
-    _, asset_currencies, _ = get_asset_and_fx_data(tickers_list)
     twd_fx_rates = {}
     currencies_to_twd = {c for c in asset_currencies.values() if c != 'TWD'}
     if currencies_to_twd:
         fx_tickers_to_twd = [f"{c}TWD=X" for c in currencies_to_twd]
         try:
-            twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(start=start_date_padded, end=end_date)['Close'].ffill()
+            twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(start=start_date_padded, end=end_date, interval="1d")['Close'].ffill()
             if twd_fx_hist.empty: raise ValueError("無法獲取對台幣的匯率數據。")
             for fx_ticker in fx_tickers_to_twd:
                 currency_code = fx_ticker.replace("TWD=X", "")
@@ -417,10 +441,34 @@ def web_main():
             if os.path.exists(temp_file_path):
                 os.remove(temp_file_path)
             st.stop() # 出錯則停止執行
+
+        # --- 重構後的數據獲取流程 ---
+        # 2.A. 獲取所有資產的貨幣對照表
+        asset_currencies = get_currency_map(tickers_list)
+        
+        # 2.B. 獲取「最新」的價格和匯率，僅用於「再平衡計算」
+        st.spinner("正在獲取最新價格與匯率用於計算...")
+        unique_currencies = set(asset_currencies.values())
+        fx_tickers_to_fetch = [f"{c}=X" for c in unique_currencies if c != BASE_CURRENCY]
+        
+        all_tickers_for_latest_price = tickers_list + fx_tickers_to_fetch
+        latest_data = yf.Tickers(' '.join(all_tickers_for_latest_price)).history(period="5d", interval="1d")['Close'].ffill()
+        
+        if latest_data.empty:
+            st.error("無法獲取最新的市場數據，無法繼續計算。")
+            st.stop()
+            
+        latest_prices = latest_data.iloc[-1]
+        prices = latest_prices[tickers_list]
+        
+        fx_rates = {BASE_CURRENCY: 1.0}
+        for fx_ticker in fx_tickers_to_fetch:
+            currency_code = fx_ticker.replace("=X", "")
+            fx_rates[currency_code] = latest_prices.get(fx_ticker)
+        
         st.subheader("--- 總資產走勢圖 ---")
-                    
-        # 呼叫我們新寫的函式，傳入整個投資組合的資訊
-        fig_value, fig_perf = create_portfolio_charts(tickers_list, quantities)
+        # 將獲取的貨幣對照表傳遞給繪圖函式
+        fig_value, fig_perf = create_portfolio_charts(tickers_list, quantities, asset_currencies)
 
         # --- 改進 2：使用 st.tabs 建立分頁 ---
         tab1, tab2 = st.tabs(["總資產價值 (TWD)", "累積績效 (%)"])
@@ -466,8 +514,6 @@ def web_main():
             with st.spinner("正在獲取市場數據並執行計算..."):
                 try:
                     # --- 執行核心邏輯 ---
-                    prices, asset_currencies, fx_rates = get_asset_and_fx_data(tickers_list)
-
                     investment_base = (twd_invest / fx_rates.get('TWD', 1)) + \
                                       (usd_invest / fx_rates.get('USD', 1)) + \
                                       (jpy_invest / fx_rates.get('JPY', 1))
