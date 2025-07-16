@@ -379,11 +379,21 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
 
     fig_perf = go.Figure()
     if not performance_pct_oneyear.empty:
-        fig_perf.add_trace(go.Scatter(
-            x=performance_pct_oneyear.index, y=performance_pct_oneyear,
+        # Define segments and colors based on a condition (e.g., y-value)
+        threshold = 0
+        x=performance_pct_oneyear.index, y=performance_pct_oneyear
+        segment1_x = x[y < threshold]
+        segment1_y = y[y < threshold]
+        segment2_x = x[y >= threshold]
+        segment2_y = y[y >= threshold]
+        fig_perf.add_trace(go.Scatter(x=segment1_x, y=segment1_y,
             mode='lines', name='累積績效', line=dict(color='lightgreen', width=2),
-            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical')
+            fill='tozeroy', fillgradient=dict(colorscale='greens', type='vertical')
         ))
+        fig_perf.add_trace(go.Scatter(x=segment2_x, y=segment2_y,
+            mode='lines',line=dict(color='red', width=2),
+            fill='tozeroy', fillgradient=dict(colorscale='reds', type='vertical')
+            ))
     fig_perf.update_layout(
         title='投資組合累積績效 (%)',
         yaxis_title='績效 (%)', xaxis_title='日期',
