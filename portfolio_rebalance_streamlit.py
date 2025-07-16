@@ -376,6 +376,27 @@ def pills(option_map):
     select = st.pills('時間範圍', options = option_map.keys(), 
                           format_func=lambda option: option_map[option], selection_mode='single')
     return select
+
+
+@st.fragment()
+def charts(tickers_list, quantities, asset_currencies):
+    option_map = {1: '一個月',
+                      3: '三個月',
+                      6: '六個月',
+                      12: '一年',
+                      36: '三年'}
+    select = pills(option_map)
+    if select is None:
+        select = 1
+    # 將獲取的貨幣對照表傳遞給繪圖函式
+    fig_value, fig_perf = create_portfolio_charts(tickers_list, quantities, asset_currencies, select, option_map)
+    # --- 改進 2：使用 st.tabs 建立分頁 ---
+    tab1, tab2 = st.tabs(["總資產價值 (TWD)", "累積績效 (%)"])
+    with tab1:
+        st.plotly_chart(fig_value, use_container_width=True)
+
+    with tab2:
+        st.plotly_chart(fig_perf, use_container_width=True)
 # --- Streamlit 網頁應用主體 ---
 def web_main():
     # 設定網頁標題和說明
@@ -450,23 +471,7 @@ def web_main():
             fx_rates[currency_code] = latest_prices.get(fx_ticker)
         
         st.subheader("--- 總資產走勢圖 ---")
-        option_map = {1: '一個月',
-                      3: '三個月',
-                      6: '六個月',
-                      12: '一年',
-                      36: '三年'}
-        select = pills(option_map)
-        if select is None:
-            select = 1
-        # 將獲取的貨幣對照表傳遞給繪圖函式
-        fig_value, fig_perf = create_portfolio_charts(tickers_list, quantities, asset_currencies, select, option_map)
-        # --- 改進 2：使用 st.tabs 建立分頁 ---
-        tab1, tab2 = st.tabs(["總資產價值 (TWD)", "累積績效 (%)"])
-        with tab1:
-            st.plotly_chart(fig_value, use_container_width=True)
-
-        with tab2:
-            st.plotly_chart(fig_perf, use_container_width=True)
+        charts(tickers_list, quantities, asset_currencies)
 
         # 2. 互動式輸入元件
         st.header("設定再平衡參數")
