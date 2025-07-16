@@ -62,7 +62,7 @@ def load_data_from_numbers(filename="portfolio_tracker.numbers"):
         quantities_array = df['Shares'].astype(float).to_numpy()
         asset_tickers_list = df['Ticker'].tolist()
 
-        st.write("數據讀取成功！")
+        #st.write("數據讀取成功！")
         return portfolio_series, quantities_array, asset_tickers_list, table, df, doc
         
     except FileNotFoundError:
@@ -128,7 +128,7 @@ def get_asset_and_fx_data(tickers_list):
     
     prices = tickers.history(period='5d')['Close'].ffill().iloc[-1]
     prices = prices.reindex(tickers_list)
-    st.success("資產數據與匯率獲取完成。")
+    #st.success("資產數據與匯率獲取完成。")
     return prices, asset_currencies, fx_rates
 
 def get_investment_amounts(supported_currencies, fx_rates):
@@ -267,7 +267,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray) ->
     Returns:
         (go.Figure, go.Figure): 一個包含 (總價值圖, 累積績效圖) 的元組。
     """
-    st.info("正在產生投資組合總資產近一年走勢圖...")
+    st.spinner("正在產生投資組合總資產近一年走勢圖...")
 
     quantities_dict = dict(zip(tickers_list, quantities_array))
 
@@ -331,7 +331,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray) ->
     fig_value = go.Figure()
     fig_value.add_trace(go.Scatter(
         x=total_portfolio_value_oneyear.index, y=total_portfolio_value_oneyear,
-        mode='lines', name='總資產', line=dict(color='deepskyblue', width=2)
+        mode='lines', name='總資產', line=dict(color='deepskyblue', width=2), fill='tozeroy'
     ))
     y_min = total_portfolio_value_oneyear.min() * 0.98
     y_max = total_portfolio_value_oneyear.max() * 1.02
@@ -357,7 +357,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray) ->
         fig_perf.add_trace(go.Scatter(
             x=performance_pct_oneyear.index, y=performance_pct_oneyear,
             mode='lines', name='累積績效', line=dict(color='lightgreen', width=2),
-            fill='tozeroy', fillcolor='rgba(144, 238, 144, 0.2)'
+            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='radial')
         ))
     fig_perf.update_layout(
         title='投資組合累積績效 (%)',
