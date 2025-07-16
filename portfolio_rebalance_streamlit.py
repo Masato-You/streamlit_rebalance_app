@@ -320,11 +320,8 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
             continue
             
         native_currency = asset_currencies.get(ticker, 'USD')
-        st.write(native_currency)
         prices_native = asset_prices_hist[ticker]
-        st.write(prices_native)
         daily_value_native = prices_native * quantities_dict[ticker]
-        st.write(daily_value_native)
         
         if native_currency == 'TWD':
             daily_values_twd[ticker] = daily_value_native
