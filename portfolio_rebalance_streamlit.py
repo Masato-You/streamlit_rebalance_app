@@ -263,7 +263,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     Returns:
         (go.Figure, go.Figure): 一個包含 (總價值圖, 累積績效圖) 的元組。
     """
-    st.spinner("正在產生投資組合總資產近一年走勢圖...")
+    st.spinner("正在產生投資組合總資產走勢圖...")
 
     quantities_dict = dict(zip(tickers_list, quantities_array))
 
@@ -452,7 +452,8 @@ def web_main():
         select = st.pills('時間範圍', options = option_map.keys(), 
                           format_func=lambda option: option_map[option], selection_mode='single')
         if select is None:
-            select = 6
+            select = 1
+        st.spinner("正在產生投資組合總資產走勢圖...")
         # 將獲取的貨幣對照表傳遞給繪圖函式
         fig_value, fig_perf = create_portfolio_charts(tickers_list, quantities, asset_currencies, select, option_map)
         # --- 改進 2：使用 st.tabs 建立分頁 ---
