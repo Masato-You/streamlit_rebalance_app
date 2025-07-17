@@ -339,9 +339,9 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         title=f'投資組合近{option_map[option]}總資產走勢 (以台幣計價)',
         yaxis_title='總資產價值 (TWD)', xaxis_title='日期',
         template='plotly_dark', height=500, yaxis_tickformat=',.0f',
-        yaxis=dict(range=[y_min, y_max]), hovermode="x"
+        yaxis=dict(range=[y_min, y_max]), hovermode="x unified"
     )
-    fig_value.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across")
+    fig_value.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker")
     fig_value.update_yaxes(showspikes=True, spikecolor="white", spikethickness=2)
     # --- 圖表二：累積績效 (%) ---
     # --- 改進 3: 使用一年前的數據作為績效計算的起點 ---
@@ -368,10 +368,10 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         title='投資組合累積績效 (%)',
         yaxis_title='績效 (%)', xaxis_title='日期',
         template='plotly_dark', height=500,
-        yaxis_ticksuffix=' %', hovermode="x"
+        yaxis_ticksuffix=' %', hovermode="x unified"
     )
-    fig_perf.update_xaxes(showspikes=True, spikecolor=color_key, spikesnap="cursor", spikemode="across")
-    fig_perf.update_yaxes(showspikes=True, spikecolor=color_key, spikethickness=2)
+    fig_perf.update_xaxes(showspikes=True, spikecolor="gray", spikesnap="cursor", spikemode="across+marker")
+    fig_perf.update_yaxes(showspikes=True, spikecolor="gray", spikethickness=1)
     return fig_value, fig_perf
 
 
