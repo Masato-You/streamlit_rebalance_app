@@ -343,7 +343,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     )
     fig_value.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker")
     fig_value.update_yaxes(showspikes=True, spikecolor="white", spikethickness=2)
-    fig_value.update_traces(hovertemplate='<extra></extra> <br> NT$%{y}')
+    fig_value.update_traces(hovertemplate='<extra></extra> NT$%{y}')
     # --- 圖表二：累積績效 (%) ---
     # --- 改進 3: 使用一年前的數據作為績效計算的起點 ---
     if not total_portfolio_value_oneyear.empty:
@@ -373,7 +373,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     )
     fig_perf.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker")
     fig_perf.update_yaxes(showspikes=True, spikecolor="white", spikethickness=2)
-    fig_perf.update_traces(hovertemplate='%{y}')
+    fig_perf.update_traces(hovertemplate='<extra></extra>%{y}')
     return fig_value, fig_perf
 
 
