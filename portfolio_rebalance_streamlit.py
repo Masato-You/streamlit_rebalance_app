@@ -281,7 +281,8 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         yaxis_title='總資產價值 (TWD)', xaxis_title='日期',
         template='plotly_dark', height=500, yaxis_tickformat=',.0f',
         yaxis=dict(range=[y_min, y_max]),
-        hovermode="x unified" # <-- 使用 unified 模式效果更好
+        hovermode="x unified", # <-- 使用 unified 模式效果更好
+        theme=None
     )
 
     # --- 圖表二：累積績效 (%) ---
