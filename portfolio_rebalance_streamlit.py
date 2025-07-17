@@ -373,7 +373,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     )
     fig_perf.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker")
     fig_perf.update_yaxes(showspikes=True, spikecolor="white", spikethickness=2)
-    fig_perf.update_traces(hovertemplate='<extra></extra>%{y}')
+    fig_perf.update_traces(hovertemplate='<extra></extra>%{y:.2f}')
     return fig_value, fig_perf
 
 
@@ -399,10 +399,10 @@ def charts(tickers_list, quantities, asset_currencies):
     # --- 改進 2：使用 st.tabs 建立分頁 ---
     tab1, tab2 = st.tabs(["總資產價值 (TWD)", "累積績效 (%)"])
     with tab1:
-        st.plotly_chart(fig_value, use_container_width=True)
+        st.plotly_chart(fig_value, use_container_width=True, theme=None)
 
     with tab2:
-        st.plotly_chart(fig_perf, use_container_width=True)
+        st.plotly_chart(fig_perf, use_container_width=True, theme=None)
 # --- Streamlit 網頁應用主體 ---
 def web_main():
     # 設定網頁標題和說明
