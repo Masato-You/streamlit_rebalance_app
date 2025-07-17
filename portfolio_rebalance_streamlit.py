@@ -332,7 +332,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     fig_value.add_trace(go.Scatter(
         x=total_portfolio_value_oneyear.index, y=total_portfolio_value_oneyear,
         mode='lines', name='總資產', line=dict(color='deepskyblue', width=2), fill='tozeroy',
-        fillgradient=dict(colorscale='blues', type='vertical', start = gradient_start*0.6, stop = gradient_start), hovertemplate=None))
+        fillgradient=dict(colorscale='blues', type='vertical', start = gradient_start*0.6, stop = gradient_start)))
     y_min = total_portfolio_value_oneyear.min() * 0.98
     y_max = total_portfolio_value_oneyear.max() * 1.02
     fig_value.update_layout(
@@ -343,6 +343,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     )
     fig_value.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker")
     fig_value.update_yaxes(showspikes=True, spikecolor="white", spikethickness=2)
+    fig_value.update_traces(hovertemplate='%{x} <br> NT$%{y}')
     # --- 圖表二：累積績效 (%) ---
     # --- 改進 3: 使用一年前的數據作為績效計算的起點 ---
     if not total_portfolio_value_oneyear.empty:
@@ -363,15 +364,16 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         fig_perf.add_trace(go.Scatter(x=performance_pct_oneyear.index, y=performance_pct_oneyear,
             mode='lines', name='累積績效', line=dict(color=color_key, width=2),
             fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical', start=gradient_start_stop, stop=-gradient_start_stop),
-                                              showlegend=False, hovertemplate=None))
+                                              showlegend=False))
     fig_perf.update_layout(
         title='投資組合累積績效 (%)',
         yaxis_title='績效 (%)', xaxis_title='日期',
         template='plotly_dark', height=500,
         yaxis_ticksuffix=' %', hovermode="x unified"
     )
-    fig_perf.update_xaxes(showspikes=True, spikecolor="gray", spikesnap="cursor", spikemode="across+marker")
-    fig_perf.update_yaxes(showspikes=True, spikecolor="gray", spikethickness=1)
+    fig_perf.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker")
+    fig_perf.update_yaxes(showspikes=True, spikecolor="white", spikethickness=2)
+    fig_perf.update_traces(hovertemplate='%{x} <br> %{y}')
     return fig_value, fig_perf
 
 
