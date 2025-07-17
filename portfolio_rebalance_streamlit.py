@@ -332,14 +332,14 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     fig_value.add_trace(go.Scatter(
         x=total_portfolio_value_oneyear.index, y=total_portfolio_value_oneyear,
         mode='lines', name='總資產', line=dict(color='deepskyblue', width=2), fill='tozeroy',
-        fillgradient=dict(colorscale='blues', type='vertical', start = gradient_start*0.6, stop = gradient_start)))
+        fillgradient=dict(colorscale='blues', type='vertical', start = gradient_start*0.6, stop = gradient_start), hovertemplate=None))
     y_min = total_portfolio_value_oneyear.min() * 0.98
     y_max = total_portfolio_value_oneyear.max() * 1.02
     fig_value.update_layout(
         title=f'投資組合近{option_map[option]}總資產走勢 (以台幣計價)',
         yaxis_title='總資產價值 (TWD)', xaxis_title='日期',
         template='plotly_dark', height=500, yaxis_tickformat=',.0f',
-        yaxis=dict(range=[y_min, y_max], hovermode="x")
+        yaxis=dict(range=[y_min, y_max]), hovermode="x"
     )
 
     # --- 圖表二：累積績效 (%) ---
@@ -362,7 +362,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         fig_perf.add_trace(go.Scatter(x=performance_pct_oneyear.index, y=performance_pct_oneyear,
             mode='lines', name='累積績效', line=dict(color=color_key, width=2),
             fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical', start=gradient_start_stop, stop=-gradient_start_stop),
-                                              showlegend=False))
+                                              showlegend=False, hovertemplate=None))
     fig_perf.update_layout(
         title='投資組合累積績效 (%)',
         yaxis_title='績效 (%)', xaxis_title='日期',
