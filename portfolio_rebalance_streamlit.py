@@ -74,62 +74,6 @@ def load_data_from_numbers(filename="portfolio_tracker.numbers"):
     except Exception as e:
         st.write(f"讀取或處理 Numbers 檔案時發生錯誤: {e}")
         exit()
-def get_asset_and_fx_data(tickers_list):
-    """
-    獲取所有資產的價格、貨幣資訊，以及所有需要的匯率（使用更穩健的混合模式）。
-    """
-    st.spinner("\n正在從 Yahoo Finance 獲取資產數據...")
-    tickers_str = ' '.join(tickers_list)
-    tickers = yf.Tickers(tickers_str)
-    
-    asset_currencies = {}
-    unique_currencies = set()
-
-    # --- 修改：使用更穩健的混合模式獲取貨幣 ---
-    for ticker_symbol, ticker_obj in tickers.tickers.items():
-        currency = None
-        # 1. 優先根據後綴判斷，無需額外網路請求，穩定快速
-        if ticker_symbol.endswith('.TW'):
-            currency = 'TWD'
-        # (未來可以繼續增加其他市場的判斷，例如 .T 代表 JPY)
-        # elif ticker_symbol.endswith('.T'):
-        #     currency = 'JPY'
-        
-        # 2. 如果沒有符合的後綴，再嘗試用 .info 查詢
-        if currency is None:
-            try:
-                currency = ticker_obj.info.get('currency', BASE_CURRENCY).upper()
-            except Exception:
-                st.warning(f"警告：無法獲取 {ticker_symbol} 的貨幣資訊，將預設為 {BASE_CURRENCY}。")
-                currency = BASE_CURRENCY
-        
-        asset_currencies[ticker_symbol] = currency
-        unique_currencies.add(currency)
-    # --- 修改結束 ---
-
-    st.spinner(f"偵測到資產貨幣: {list(unique_currencies)}")
-    
-    fx_tickers_to_fetch = [f"{c}=X" for c in unique_currencies if c != BASE_CURRENCY]
-    fx_rates = {BASE_CURRENCY: 1.0}
-    
-    if fx_tickers_to_fetch:
-        st.spinner(f"正在獲取匯率: {fx_tickers_to_fetch}")
-        fx_data = yf.Tickers(' '.join(fx_tickers_to_fetch))
-        for fx_ticker in fx_tickers_to_fetch:
-            currency_code = fx_ticker.replace("=X", "")
-            try:
-                rate = fx_data.tickers[fx_ticker].history(period='5d')['Close'].ffill().iloc[-1]
-                if pd.isna(rate):
-                    raise ValueError(f"Rate for {fx_ticker} is NaN.")
-                fx_rates[currency_code] = rate
-            except Exception as e:
-                st.error(f"錯誤：無法獲取匯率 {fx_ticker}，程式將終止。")
-                st.stop()
-    
-    prices = tickers.history(period='5d')['Close'].ffill().iloc[-1]
-    prices = prices.reindex(tickers_list)
-    #st.success("資產數據與匯率獲取完成。")
-    return prices, asset_currencies, fx_rates
 
 def get_currency_map(tickers_list: list) -> dict:
     """
@@ -255,54 +199,50 @@ def download_rebalanced_numbers(data_to_download):
                         mime="application/octet-stream"
                     )
 
-@st.fragment()
-def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, asset_currencies: dict, option, option_map) -> tuple[go.Figure, go.Figure]:
+# 在您的函式定義區塊，用這個新版本取代舊的 create_portfolio_charts
+# 並可以刪除舊的 get_asset_and_fx_data 函式，因為它的功能已被整合和優化
+
+@st.cache_data # <-- 啟用快取功能
+def fetch_historical_data(tickers_list: list, asset_currencies: dict) -> tuple[pd.DataFrame, dict]:
     """
-    計算投資組合總價值與累積績效，並產生兩張對應的圖表（已加入前期數據緩衝以處理開頭缺值問題）。
-
-    Returns:
-        (go.Figure, go.Figure): 一個包含 (總價值圖, 累積績效圖) 的元組。
+    獲取並快取所有需要的歷史數據（股價和匯率），只在必要時執行。
     """
-    st.spinner("正在產生投資組合總資產走勢圖...")
-
-    quantities_dict = dict(zip(tickers_list, quantities_array))
-
-    # --- 改進 1: 獲取 5 年的數據作為緩衝 ---
-    end_date = date.today()
-    start_date_actual = end_date - relativedelta(months=option)
+    st.info("首次執行或數據更新：正在從 Yahoo Finance 獲取 5 年歷史數據...")
     
-    
-    try:
-        # 使用 start 和 end 參數獲取指定區間數據
-        #隨便塞一個 yahoo finance 有提供每日價格的東西讓美元兌美元不會只有一天的價格
-        tickers_list_fake = tickers_list + ["^GSPC"]
-        asset_prices_hist = yf.Tickers(' '.join(tickers_list_fake)).history(period="5y", interval="1d", back_adjust=True)['Close'].ffill().fillna(1)
-        
-        if asset_prices_hist.empty:
-            raise ValueError("無法獲取任何資產的歷史價格。")
-    except Exception as e:
-        st.error(f"獲取資產歷史價格時出錯: {e}")
-        return go.Figure(), go.Figure()
+    # 獲取資產價格
+    tickers_to_fetch_prices = tickers_list + ["^GSPC"] # 加入標普500確保時間序列完整
+    asset_prices_hist = yf.Tickers(' '.join(tickers_to_fetch_prices)).history(
+        period="5y", interval="1d", back_adjust=True
+    )['Close'].ffill().fillna(1)
 
-    twd_fx_rates = {}
+    # 獲取匯率
+    twd_fx_rates_hist = {}
     currencies_to_twd = {c for c in asset_currencies.values() if c != 'TWD'}
     if currencies_to_twd:
         fx_tickers_to_twd = [f"{c}TWD=X" for c in currencies_to_twd]
-        try:
-            twd_fx_hist = yf.Tickers(' '.join(fx_tickers_to_twd)).history(period="5y", interval="1d", back_adjust=True)['Close'].ffill()
-            if twd_fx_hist.empty: raise ValueError("無法獲取對台幣的匯率數據。")
-            for fx_ticker in fx_tickers_to_twd:
-                currency_code = fx_ticker.replace("TWD=X", "")
-                twd_fx_rates[currency_code] = twd_fx_hist.get(fx_ticker)
-        except Exception:
-            st.warning("部分匯率數據獲取失敗，可能影響總值計算。")
+        twd_fx_hist_df = yf.Tickers(' '.join(fx_tickers_to_twd)).history(
+            period="5y", interval="1d", back_adjust=True
+        )['Close'].ffill()
+        for fx_ticker in fx_tickers_to_twd:
+            currency_code = fx_ticker.replace("TWD=X", "")
+            twd_fx_rates_hist[currency_code] = twd_fx_hist_df.get(fx_ticker)
+            
+    return asset_prices_hist, twd_fx_rates_hist
 
+@st.fragment()
+def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, asset_currencies: dict, option, option_map) -> tuple[go.Figure, go.Figure]:
+    """
+    計算投資組合總價值與累積績效，並產生兩張對應的圖表。
+    """
+    quantities_dict = dict(zip(tickers_list, quantities_array))
+
+    # --- 效能優化：呼叫快取函式 ---
+    asset_prices_hist, twd_fx_rates = fetch_historical_data(tuple(tickers_list), frozenset(asset_currencies.items()))
+    
     daily_values_twd = pd.DataFrame(index=asset_prices_hist.index)
     for ticker in tickers_list:
         if ticker not in asset_prices_hist.columns:
-            st.warning(f"缺少 {ticker} 的價格數據，將從總值計算中忽略。")
             continue
-            
         native_currency = asset_currencies.get(ticker, 'USD')
         prices_native = asset_prices_hist[ticker]
         daily_value_native = prices_native * quantities_dict[ticker]
@@ -316,58 +256,54 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         else:
             daily_values_twd[ticker] = 0
             
-            
     total_portfolio_value = daily_values_twd.sum(axis=1).dropna()
+    
+    end_date = date.today()
+    start_date_actual = end_date - relativedelta(months=option)
+    total_portfolio_value_sliced = total_portfolio_value[total_portfolio_value.index.date >= start_date_actual]
 
-    if total_portfolio_value.empty:
-        st.error("計算總資產價值失敗，可能是由於數據不足。")
+    if total_portfolio_value_sliced.empty:
+        st.warning("在選定時間範圍內無數據可顯示。")
         return go.Figure(), go.Figure()
-
-    # --- 改進 2: 計算完成後，將數據裁切回選取期間 ---
-    total_portfolio_value_oneyear = total_portfolio_value[total_portfolio_value.index.date >= start_date_actual]
 
     # --- 圖表一：總資產價值 (TWD) ---
     fig_value = go.Figure()
-    gradient_start = total_portfolio_value_oneyear.max()
     fig_value.add_trace(go.Scatter(
-        x=total_portfolio_value_oneyear.index, y=total_portfolio_value_oneyear,
-        mode='lines', name='總資產', line=dict(color='deepskyblue', width=2), fill='tozeroy',
-        fillgradient=dict(colorscale='blues', type='vertical', start = gradient_start*0.6, stop = gradient_start), hovertemplate=None))
-    y_min = total_portfolio_value_oneyear.min() * 0.98
-    y_max = total_portfolio_value_oneyear.max() * 1.02
+        x=total_portfolio_value_sliced.index, y=total_portfolio_value_sliced,
+        mode='lines+markers', name='總資產', line=dict(color='deepskyblue', width=2),
+        # --- FIX: 設定 Hovertemplate ---
+        hovertemplate='<b>日期</b>: %{x|%Y-%m-%d}<br><b>總資產</b>: %{y:,.0f} TWD<extra></extra>'
+    ))
+    y_min = total_portfolio_value_sliced.min() * 0.98
+    y_max = total_portfolio_value_sliced.max() * 1.02
     fig_value.update_layout(
-        title=f'投資組合近{option_map[option]}總資產走勢 (以台幣計價)',
+        title=f'投資組合近 {option_map[option]} 總資產走勢 (以台幣計價)',
         yaxis_title='總資產價值 (TWD)', xaxis_title='日期',
         template='plotly_dark', height=500, yaxis_tickformat=',.0f',
-        yaxis=dict(range=[y_min, y_max]), hovermode="x"
+        yaxis=dict(range=[y_min, y_max]),
+        hovermode="x unified" # <-- 使用 unified 模式效果更好
     )
 
     # --- 圖表二：累積績效 (%) ---
-    # --- 改進 3: 使用一年前的數據作為績效計算的起點 ---
-    if not total_portfolio_value_oneyear.empty:
-        start_value = total_portfolio_value_oneyear.iloc[0]
-        # 績效仍然在完整的序列上計算，以確保平滑，然後再裁切
-        performance_pct = (total_portfolio_value / (start_value+1) - 1) * 100 
-        performance_pct_oneyear = performance_pct[performance_pct.index.date >= start_date_actual]
-    else:
-        performance_pct_oneyear = pd.Series() # 創建空的 Series 避免錯誤
-
+    start_value = total_portfolio_value_sliced.iloc[0]
+    performance_pct = (total_portfolio_value / start_value - 1) * 100 if start_value != 0 else 0
+    performance_pct_sliced = performance_pct[performance_pct.index.date >= start_date_actual]
+    
     fig_perf = go.Figure()
-    if not performance_pct_oneyear.empty:
-        threshold = 0
-        color_key = 'lightcoral'
-        if performance_pct_oneyear[-1] < threshold:
-            color_key = 'lightgreen'
-        gradient_start_stop = performance_pct_oneyear.abs().max()*0.5
-        fig_perf.add_trace(go.Scatter(x=performance_pct_oneyear.index, y=performance_pct_oneyear,
-            mode='lines', name='累積績效', line=dict(color=color_key, width=2),
-            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical', start=gradient_start_stop, stop=-gradient_start_stop),
-                                              showlegend=False, hovertemplate=None))
+    if not performance_pct_sliced.empty:
+        fig_perf.add_trace(go.Scatter(
+            x=performance_pct_sliced.index, y=performance_pct_sliced,
+            mode='lines+markers', name='累積績效', line=dict(color='lightgreen', width=2),
+            fill='tozeroy', fillcolor='rgba(144, 238, 144, 0.2)',
+            # --- FIX: 設定 Hovertemplate ---
+            hovertemplate='<b>日期</b>: %{x|%Y-%m-%d}<br><b>累積績效</b>: %{y:.2f}%<extra></extra>'
+        ))
     fig_perf.update_layout(
-        title='投資組合累積績效 (%)',
+        title=f'投資組合近 {option_map[option]} 累積績效 (%)',
         yaxis_title='績效 (%)', xaxis_title='日期',
         template='plotly_dark', height=500,
-        yaxis_ticksuffix=' %', hovermode="x"
+        yaxis_ticksuffix=' %',
+        hovermode="x unified" # <-- 使用 unified 模式效果更好
     )
     
     return fig_value, fig_perf
