@@ -399,10 +399,10 @@ def charts(tickers_list, quantities, asset_currencies):
     # --- 改進 2：使用 st.tabs 建立分頁 ---
     tab1, tab2 = st.tabs(["總資產價值 (TWD)", "累積績效 (%)"])
     with tab1:
-        st.plotly_chart(fig_value, use_container_width=True, theme=None)
+        st.plotly_chart(fig_value, use_container_width=True)
 
     with tab2:
-        st.plotly_chart(fig_perf, use_container_width=True, theme=None)
+        st.plotly_chart(fig_perf, use_container_width=True)
 # --- Streamlit 網頁應用主體 ---
 def web_main():
     # 設定網頁標題和說明
