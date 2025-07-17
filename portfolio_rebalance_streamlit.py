@@ -341,6 +341,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         template='plotly_dark', height=500, yaxis_tickformat=',.0f',
         yaxis=dict(range=[y_min, y_max])
     )
+    fig_value.update_layout(hovermode="x")
 
     # --- 圖表二：累積績效 (%) ---
     # --- 改進 3: 使用一年前的數據作為績效計算的起點 ---
@@ -369,6 +370,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         template='plotly_dark', height=500,
         yaxis_ticksuffix=' %'
     )
+    fig_perf.update_layout(hovermode="x")
     
     return fig_value, fig_perf
 
