@@ -281,8 +281,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         yaxis_title='總資產價值 (TWD)', xaxis_title='日期',
         template='plotly_dark', height=500, yaxis_tickformat=',.0f',
         yaxis=dict(range=[y_min, y_max]),
-        hovermode="x unified", # <-- 使用 unified 模式效果更好
-        theme=None
+        hovermode="x unified" # <-- 使用 unified 模式效果更好
     )
 
     # --- 圖表二：累積績效 (%) ---
@@ -332,10 +331,10 @@ def charts(tickers_list, quantities, asset_currencies):
     # --- 改進 2：使用 st.tabs 建立分頁 ---
     tab1, tab2 = st.tabs(["總資產價值 (TWD)", "累積績效 (%)"])
     with tab1:
-        st.plotly_chart(fig_value, use_container_width=True)
+        st.plotly_chart(fig_value, use_container_width=True, theme=None)
 
     with tab2:
-        st.plotly_chart(fig_perf, use_container_width=True)
+        st.plotly_chart(fig_perf, use_container_width=True, theme=None)
 # --- Streamlit 網頁應用主體 ---
 def web_main():
     # 設定網頁標題和說明
