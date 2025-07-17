@@ -373,7 +373,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     )
     fig_perf.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker")
     fig_perf.update_yaxes(showspikes=True, spikecolor="white", spikethickness=2)
-    fig_perf.update_traces(hovertemplate='<extra></extra>%{y:.2f}')
+    fig_perf.update_traces(hovertemplate='<extra></extra>%{y:.2f}%%')
     return fig_value, fig_perf
 
 
