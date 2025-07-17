@@ -279,7 +279,8 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     fig_value.update_layout(
         title=f'投資組合近 {option_map[option]} 總資產走勢 (以台幣計價)',
         yaxis_title='總資產價值 (TWD)', xaxis_title='日期',
-        template='plotly_dark', height=500, yaxis_tickformat=',.0f',
+        #template='plotly_dark', height=500, 
+        yaxis_tickformat=',.0f',
         yaxis=dict(range=[y_min, y_max]),
         hovermode="x unified" # <-- 使用 unified 模式效果更好
     )
@@ -301,7 +302,8 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     fig_perf.update_layout(
         title=f'投資組合近 {option_map[option]} 累積績效 (%)',
         yaxis_title='績效 (%)', xaxis_title='日期',
-        template='plotly_dark', height=500,
+        #template='plotly_dark', 
+        height=500,
         yaxis_ticksuffix=' %',
         hovermode="x unified" # <-- 使用 unified 模式效果更好
     )
