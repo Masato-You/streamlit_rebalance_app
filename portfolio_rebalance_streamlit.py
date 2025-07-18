@@ -342,7 +342,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         yaxis=dict(range=[y_min, y_max]), hovermode=None
     )
     fig_value.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker")
-    fig_value.update_yaxes(showspikes=True, spikecolor="white", spikethickness=1.5, spikesnap = "cursor", spikedash="dash dot")
+    fig_value.update_yaxes(showspikes=True, spikecolor="white", spikethickness=1.5, spikesnap = "cursor", spikedash="dashdot")
     fig_value.update_traces(hovertemplate='%{x}<br>'+
                             'NT$%{y}')
     # --- 圖表二：累積績效 (%) ---
