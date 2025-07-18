@@ -343,7 +343,8 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     )
     fig_value.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker")
     fig_value.update_yaxes(showspikes=True, spikecolor="white", spikethickness=1.5)
-    fig_value.update_traces(hovertemplate=' NT$%{y}')
+    fig_value.update_traces(hovertemplate='%{x}<br>'+
+                            'NT$%{y}')
     # --- 圖表二：累積績效 (%) ---
     # --- 改進 3: 使用一年前的數據作為績效計算的起點 ---
     if not total_portfolio_value_oneyear.empty:
@@ -369,11 +370,12 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         title='投資組合累積績效 (%)',
         yaxis_title='績效 (%)', xaxis_title='日期',
         template='plotly_dark', height=500,
-        yaxis_ticksuffix=' %', hovermode="x unified"
+        yaxis_ticksuffix=' %', hovermode=None
     )
     fig_perf.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker")
     fig_perf.update_yaxes(showspikes=True, spikecolor="white", spikethickness=1.5)
-    fig_perf.update_traces(hovertemplate='<extra></extra>%{y:.2f}%')
+    fig_perf.update_traces(hovertemplate='%{x}<br>'+
+                           '%{y:.2f}%')
     return fig_value, fig_perf
 
 
