@@ -341,7 +341,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         template='plotly_dark', height=500, yaxis_tickformat=',.0f',
         yaxis=dict(range=[y_min, y_max]), hovermode=None
     )
-    fig_value.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker")
+    fig_value.update_xaxes(showspikes=True, spikecolor="white", spikesnap="hoverd data", spikemode="across+marker")
     fig_value.update_yaxes(showspikes=True, spikecolor="white", spikethickness=1.5)
     fig_value.update_traces(hovertemplate='%{x}<br>'+
                             'NT$%{y}')
