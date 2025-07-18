@@ -256,6 +256,22 @@ def download_rebalanced_numbers(data_to_download):
                         file_name="rebalanced_portfolio.numbers",
                         mime="application/octet-stream"
                     )
+    
+@st.fragment()
+def operation_type():
+    investment_type=st.radio("操作類型：", ('投入資金', '提領資金'))
+    return investment_type
+
+@st.fragment()
+def sell_or_buy(is_withdraw):
+    if is_withdraw:
+        buy_allowed = st.checkbox("提領時，允許買入部分資產以達成平衡？")
+        sell_allowed = False
+    else:
+        sell_allowed = st.checkbox("投入時，允許賣出部分資產以達成平衡？")
+        buy_allowed = False
+    return buy_allowed, sell_allowed
+
 # --- Streamlit 網頁應用主體 ---
 def web_main():
     # 設定網頁標題和說明
@@ -310,17 +326,12 @@ def web_main():
 
         col1, col2 = st.columns(2)
         with col1:
-            investment_type = st.radio("操作類型：", ('投入資金', '提領資金'))
+            investment_type = operation_type()
         
         is_withdraw = (investment_type == '提領資金')
 
         with col2:
-            if is_withdraw:
-                buy_allowed = st.checkbox("提領時，允許買入部分資產以達成平衡？")
-                sell_allowed = False
-            else:
-                sell_allowed = st.checkbox("投入時，允許賣出部分資產以達成平衡？")
-                buy_allowed = False
+            buy_allowed, sell_allowed = sell_or_buy(is_withdraw)
 
         st.subheader("投入/提領金額 (提領請輸入正數)")
         with st.form(key='investment_form'):
