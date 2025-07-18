@@ -339,7 +339,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         title=f'投資組合近{option_map[option]}總資產走勢 (以台幣計價)',
         yaxis_title='總資產價值 (TWD)', xaxis_title='日期',
         template='plotly_dark', height=500, yaxis_tickformat=',.0f',
-        yaxis=dict(range=[y_min, y_max]), hovermode="x unified"
+        yaxis=dict(range=[y_min, y_max]), hovermode=None
     )
     fig_value.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker")
     fig_value.update_yaxes(showspikes=True, spikecolor="white", spikethickness=1.5)
