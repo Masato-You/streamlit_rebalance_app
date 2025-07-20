@@ -498,7 +498,7 @@ def create_polar_comparison_charts(
         fig.update_layout(
             title=title,
             template='plotly_dark',
-            autosize = True,
+            height=500,
             polar=dict(
                 radialaxis=dict(
                     visible=False,
