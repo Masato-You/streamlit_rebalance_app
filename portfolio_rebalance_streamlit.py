@@ -447,15 +447,15 @@ def create_polar_comparison_charts(
         widths = target_ratios.values * 360
         thetas = np.cumsum(widths) - 0.5 * widths
         colors = sns.color_palette('viridis_r', n_colors=len(target_ratios)).as_hex()
-        base_radius = 9.75*1.4
-        Radius = 15*1.5        #外圈半徑
+        base_radius = 9.75*2
+        Radius = 15*2        #外圈半徑
         r_values = np.sqrt(base_radius**2 + (actual_ratios.values / (target_ratios.values + 1e-9)) * (Radius**2 - base_radius**2)) - base_radius
 
         # --- FIX: 準備 customdata ---
         # 將台幣價值和實際比例(%)打包
         # customdata 的每一行對應一個資產，[價值, 比例]
         custom_data_stack = np.stack(
-            [actual_values_twd.values, actual_ratios.values * 100], 
+            [actual_values_twd.values, actual_ratios.values * 100, target_ratios.values * 100], 
             axis=-1
         )
 
@@ -486,7 +486,8 @@ def create_polar_comparison_charts(
             hovertemplate=(
                 '<b>%{text}</b><br><br>'
                 '目前價值: TWD$%{customdata[0]:,.0f}<br>'
-                '目前比例: %{customdata[1]:.2f}%'
+                '目前比例: %{customdata[1]:.2f}%<br>'
+                '目標比例: %{customdata[2]:.2f}%'
                 '<extra></extra>'
             ),
             name='實際比例'
@@ -500,7 +501,7 @@ def create_polar_comparison_charts(
             polar=dict(
                 radialaxis=dict(
                     visible=False,
-                    range=[0, max(Radius*1.2, r_values.max() * 1.1)], # 動態調整半徑軸範圍
+                    range=[0, max(Radius*1.2, (r_values.max()+base_radius) * 1.1)], # 動態調整半徑軸範圍
                     showticklabels=False, 
                     ticks=''
                 ),
