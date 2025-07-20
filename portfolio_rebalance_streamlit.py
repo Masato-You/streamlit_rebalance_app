@@ -421,6 +421,101 @@ def sell_or_buy(is_withdraw):
         buy_allowed = False
     return buy_allowed, sell_allowed
 
+@st.fragment()
+def create_polar_comparison_charts(
+    before_ratios: pd.Series, 
+    after_ratios: pd.Series, 
+    target_ratios: pd.Series,
+    before_values_twd: pd.Series, #<-- 新增參數
+    after_values_twd: pd.Series   #<-- 新增參數
+) -> tuple[go.Figure, go.Figure]:
+    """
+    建立並列的極座標柱狀圖，比較再平衡前後的資產分佈。
+    """
+    # 內部輔助函式，用於繪製單張圖表
+    def _create_single_polar_chart(
+        actual_ratios: pd.Series, 
+        target_ratios: pd.Series, 
+        actual_values_twd: pd.Series, #<-- 新增參數
+        title: str
+    ) -> go.Figure:
+        # 確保數據對齊
+        target_ratios = target_ratios.reindex(actual_ratios.index).fillna(0)
+        actual_values_twd = actual_values_twd.reindex(actual_ratios.index).fillna(0)
+
+        # --- 計算圖形參數 ---
+        widths = target_ratios.values * 360
+        thetas = np.cumsum(widths) - 0.5 * widths
+        colors = sns.color_palette('viridis_r', n_colors=len(target_ratios)).as_hex()
+        base_radius = 6.5
+        r_values = np.sqrt(base_radius**2 + (actual_ratios.values / (target_ratios.values + 1e-9)) * (10**2 - base_radius**2)) - base_radius
+
+        # --- FIX: 準備 customdata ---
+        # 將台幣價值和實際比例(%)打包
+        # customdata 的每一行對應一個資產，[價值, 比例]
+        custom_data_stack = np.stack(
+            [actual_values_twd.values, actual_ratios.values * 100], 
+            axis=-1
+        )
+
+        fig = go.Figure()
+        
+
+        # 新增一個代表 100% 目標的基準線環
+        fig.add_trace(go.Scatterpolar(
+            r=np.ones(120) * 10,
+            theta=np.linspace(0, 360, 120),
+            mode='lines',
+            name='目標基準',
+            line_color='gray',
+            line=dict(dash='dash', shape='spline', smoothing=1, width=1.5),
+            hoverinfo="none"
+        ))
+        # 新增代表實際比例的柱狀圖
+        fig.add_trace(go.Barpolar(
+            r=r_values,
+            theta=thetas,
+            width=widths * 0.99,
+            marker_color=colors,
+            text=actual_ratios.index,
+            opacity=0.8,
+            base=base_radius,
+            customdata=custom_data_stack, #<-- 綁定 customdata
+            # --- FIX: 更新 hovertemplate ---
+            hovertemplate=(
+                '<b>%{text}</b><br><br>'
+                '目前價值: TWD$%{customdata[0]:,.0f}<br>'
+                '目前比例: %{customdata[1]:.2f}%'
+                '<extra></extra>'
+            ),
+            name='實際比例'
+        ))
+
+
+        # (美化圖表佈局的程式碼不變，此處省略)
+        fig.update_layout(
+            title=title,
+            template='plotly_dark',
+            polar=dict(
+                radialaxis=dict(
+                    visible=False,
+                    range=[0, max(12, r_values.max() * 1.1)], # 動態調整半徑軸範圍
+                    showticklabels=False, 
+                    ticks=''
+                ),
+                angularaxis=dict(
+                    showticklabels=False,
+                    ticks='',
+                    visible = False
+                ))
+        )
+        return fig
+
+    # --- 主函式邏輯：產生兩張圖 ---
+    fig_before = _create_single_polar_chart(before_ratios, target_ratios, before_values_twd, "平衡前 vs. 目標")
+    fig_after = _create_single_polar_chart(after_ratios, target_ratios, after_values_twd, "平衡後 vs. 目標")
+    
+    return fig_before, fig_after
 # --- Streamlit 網頁應用主體 ---
 def web_main():
     # 設定網頁標題和說明
@@ -596,14 +691,28 @@ def web_main():
                     adjusted_values_base = current_values_base + result_base
                     adjusted_values_base[adjusted_values_base < 0] = 0
                     after_ratio = adjusted_values_base / adjusted_values_base.sum() if adjusted_values_base.sum() > 0 else before_ratio
+                    before_values_twd = current_values_base*fx_rates.get("TWD", 1.0)
+                    after_values_twd = adjusted_values_base*fx_rates.get("TWD", 1.0)
+                    fig_before, fig_after = create_polar_comparison_charts(before_ratio, after_ratio, target_ratios=portfolio, before_values_twd=before_values_twd, after_values_twd=after_values_twd)
                     
-                    fig = plot_rebalancing_comparison_charts(
-                        before_ratios=before_ratio,
-                        after_ratios=after_ratio,
-                        target_ratios=portfolio,
-                        filename="rebalancing_side_by_side.png" # filename is not used here but good practice
-                    )
-                    st.pyplot(fig)
+
+                    # 3. 使用 st.columns 並列顯示
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.plotly_chart(fig_before, use_container_width=True)
+                    with col2:
+                        st.plotly_chart(fig_after, use_container_width=True)
+
+
+                    # fig = plot_rebalancing_comparison_charts(
+                    #     before_ratios=before_ratio,
+                    #     after_ratios=after_ratio,
+                    #     target_ratios=portfolio,
+                    #     filename="rebalancing_side_by_side.png" # filename is not used here but good practice
+                    # )
+                    #st.pyplot(fig)
+
+
 
                     # --- 功能 2: 產生並下載結果檔 (已加入儲存格格式化) ---
                     st.subheader("--- 下載更新後的檔案 ---")
