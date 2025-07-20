@@ -447,8 +447,8 @@ def create_polar_comparison_charts(
         widths = target_ratios.values * 360
         thetas = np.cumsum(widths) - 0.5 * widths
         colors = sns.color_palette('viridis_r', n_colors=len(target_ratios)).as_hex()
-        base_radius = 9.75
-        Radius = 15        #外圈半徑
+        base_radius = 9.75*1.4
+        Radius = 15*1.5        #外圈半徑
         r_values = np.sqrt(base_radius**2 + (actual_ratios.values / (target_ratios.values + 1e-9)) * (Radius**2 - base_radius**2)) - base_radius
 
         # --- FIX: 準備 customdata ---
