@@ -702,7 +702,7 @@ def web_main():
                     with col1:
                         st.plotly_chart(fig_before, use_container_width=True, theme=None)
                     with col2:
-                        st.plotly_chart(fig_after, use_container_width=True, theme=FileNotFoundError)
+                        st.plotly_chart(fig_after, use_container_width=True, theme=None)
 
 
                     # fig = plot_rebalancing_comparison_charts(
