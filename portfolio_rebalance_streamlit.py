@@ -447,8 +447,9 @@ def create_polar_comparison_charts(
         widths = target_ratios.values * 360
         thetas = np.cumsum(widths) - 0.5 * widths
         colors = sns.color_palette('viridis_r', n_colors=len(target_ratios)).as_hex()
-        base_radius = 6.5
-        r_values = np.sqrt(base_radius**2 + (actual_ratios.values / (target_ratios.values + 1e-9)) * (10**2 - base_radius**2)) - base_radius
+        base_radius = 9.75
+        Radius = 15        #外圈半徑
+        r_values = np.sqrt(base_radius**2 + (actual_ratios.values / (target_ratios.values + 1e-9)) * (Radius**2 - base_radius**2)) - base_radius
 
         # --- FIX: 準備 customdata ---
         # 將台幣價值和實際比例(%)打包
@@ -463,7 +464,7 @@ def create_polar_comparison_charts(
 
         # 新增一個代表 100% 目標的基準線環
         fig.add_trace(go.Scatterpolar(
-            r=np.ones(120) * 10,
+            r=np.ones(120) * Radius,
             theta=np.linspace(0, 360, 120),
             mode='lines',
             name='目標基準',
@@ -499,7 +500,7 @@ def create_polar_comparison_charts(
             polar=dict(
                 radialaxis=dict(
                     visible=False,
-                    range=[0, max(12, r_values.max() * 1.1)], # 動態調整半徑軸範圍
+                    range=[0, max(Radius*1.2, r_values.max() * 1.1)], # 動態調整半徑軸範圍
                     showticklabels=False, 
                     ticks=''
                 ),
@@ -699,9 +700,9 @@ def web_main():
                     # 3. 使用 st.columns 並列顯示
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.plotly_chart(fig_before, use_container_width=True)
+                        st.plotly_chart(fig_before, use_container_width=True, theme=None)
                     with col2:
-                        st.plotly_chart(fig_after, use_container_width=True)
+                        st.plotly_chart(fig_after, use_container_width=True, theme=FileNotFoundError)
 
 
                     # fig = plot_rebalancing_comparison_charts(
