@@ -406,7 +406,7 @@ def charts(tickers_list, quantities, asset_currencies):
     with tab2:
         st.plotly_chart(fig_perf, use_container_width=True)
     
-@st.fragment()
+
 def operation_type():
     investment_type=st.radio("操作類型：", ('投入資金', '提領資金'))
     return investment_type
