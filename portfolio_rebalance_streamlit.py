@@ -209,35 +209,6 @@ def calculate_transactions(result_base, prices, asset_currencies, fx_rates):
 
     return buy_amounts_local, sell_quantities_local
 
-# (繪圖函式 _draw_single_donut 和 plot_rebalancing_comparison_charts 維持不變，此處省略)
-def plot_rebalancing_comparison_charts(before_ratios, after_ratios, target_ratios, filename):
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6)); fig.set_facecolor('#2d2d3d')
-    _draw_single_donut(ax1, before_ratios, target_ratios, "Before Rebalancing")
-    _draw_single_donut(ax2, after_ratios, target_ratios, "After Rebalancing")
-    plt.tight_layout(pad=1)
-    return fig
-    
-def _draw_single_donut(ax, current_ratios, target_ratios, title):
-    target_ratios = target_ratios.reindex(current_ratios.index); categories = current_ratios.index
-    current_alloc_norm, target_alloc_norm = current_ratios.values, target_ratios.values
-    colors = sns.color_palette('viridis', n_colors=len(categories)).as_hex(); bg_color = "#2d2d3dff"
-    ax.set_facecolor(bg_color); ax.set_title(title, color='white', fontsize=20, pad=20); ax.set_aspect('equal')
-    start_angle = 90; base_radius = 1.1; center_hole_radius = 0.66
-    for i in range(len(categories)):
-        p_current, p_target = current_alloc_norm[i], target_alloc_norm[i]
-        if p_target > 0: radius = np.sqrt(max(0, (center_hole_radius**2) + (p_current/p_target)*(base_radius**2 - center_hole_radius**2)))
-        else: radius = base_radius if p_current == 0 else 0.3
-        angle_slice = target_alloc_norm[i] * 360; end_angle = start_angle - angle_slice
-        wedge = patches.Wedge((0,0), r=radius, theta1=end_angle, theta2=start_angle, facecolor=colors[i], edgecolor=bg_color, linewidth=2.5); ax.add_patch(wedge)
-        if angle_slice > 0:
-            mid_angle_rad = np.deg2rad(start_angle - angle_slice/2); text_radius = (radius + center_hole_radius)/2
-            x, y = text_radius*np.cos(mid_angle_rad), text_radius*np.sin(mid_angle_rad)
-            ax.text(x, y, categories[i], ha='center', va='center', color='white', fontsize=11, weight='bold', bbox=dict(boxstyle="round,pad=0.2", fc=colors[i], ec='none', alpha=0.6))
-        start_angle = end_angle
-    reference_circle = plt.Circle((0,0), base_radius, linestyle='--', fill=False, edgecolor='gray', linewidth=1.5); ax.add_patch(reference_circle)
-    center_hole = plt.Circle((0,0), center_hole_radius, facecolor=bg_color, linestyle=''); ax.add_patch(center_hole)
-    ax.set_xlim(-1.4, 1.4); ax.set_ylim(-1.4, 1.4); ax.axis('off')
-
 @st.fragment()
 def invest_withdraw():
     twd_invest = st.number_input("台幣 (TWD)", value=0)
@@ -406,19 +377,16 @@ def charts(tickers_list, quantities, asset_currencies):
     with tab2:
         st.plotly_chart(fig_perf, use_container_width=True)
     
-
+@st.fragment
 def operation_type():
     investment_type=st.radio("操作類型：", ('投入資金', '提領資金'))
     return investment_type
 
 @st.fragment()
-def sell_or_buy(is_withdraw):
-    if is_withdraw:
-        buy_allowed = st.checkbox("提領時，允許買入部分資產以達成平衡？")
-        sell_allowed = False
-    else:
-        sell_allowed = st.checkbox("投入時，允許賣出部分資產以達成平衡？")
-        buy_allowed = False
+def sell_or_buy():
+    buy_allowed, sell_allowed = False, False
+    buy_allowed=st.checkbox("投入/提領時，允許賣出/買入部分資產以達成平衡？")
+    sell_allowed = buy_allowed
     return buy_allowed, sell_allowed
 
 @st.fragment()
@@ -605,9 +573,9 @@ def web_main():
         is_withdraw = (investment_type == '提領資金')
 
         with col2:
-            buy_allowed, sell_allowed = sell_or_buy(is_withdraw)
+            buy_allowed, sell_allowed = sell_or_buy()
 
-        st.subheader("投入/提領金額 (提領請輸入正數)")
+        st.subheader("投入/提領金額")
         with st.form(key='investment_form'):
             twd_invest_abs = st.number_input("台幣 (TWD)", value=0, min_value=0, format="%d")
             usd_invest_abs = st.number_input("美金 (USD)", value=0.00, min_value=0.0, format="%.2f")
@@ -707,13 +675,6 @@ def web_main():
                         st.plotly_chart(fig_after, use_container_width=True, theme=None)
 
 
-                    # fig = plot_rebalancing_comparison_charts(
-                    #     before_ratios=before_ratio,
-                    #     after_ratios=after_ratio,
-                    #     target_ratios=portfolio,
-                    #     filename="rebalancing_side_by_side.png" # filename is not used here but good practice
-                    # )
-                    #st.pyplot(fig)
 
 
 
