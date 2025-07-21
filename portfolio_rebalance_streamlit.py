@@ -415,6 +415,7 @@ def create_polar_comparison_charts(
         widths = target_ratios.values * 360
         thetas = np.cumsum(widths) - 0.5 * widths
         colors = sns.color_palette('viridis_r', n_colors=len(target_ratios)).as_hex()
+        colors_bright = (sns.color_palette('viridis_r', n_colors=len(target_ratios))*1.3).as_hex
         base_radius = 6
         Radius = 10        #外圈半徑
         r_values = np.sqrt(base_radius**2 + (actual_ratios.values / (target_ratios.values + 1e-9)) * (Radius**2 - base_radius**2)) - base_radius
@@ -446,10 +447,10 @@ def create_polar_comparison_charts(
             theta=thetas,
             width=widths * 0.97,
             marker_color=colors,
-            marker_line_color = "white",
+            marker_line_color = colors_bright,
             marker_line_width = 1,
             text=actual_ratios.index,
-            opacity=0.8,
+            opacity=0.7,
             base=base_radius,
             customdata=custom_data_stack, #<-- 綁定 customdata
             # --- FIX: 更新 hovertemplate ---
