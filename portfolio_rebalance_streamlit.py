@@ -446,10 +446,10 @@ def create_polar_comparison_charts(
             theta=thetas,
             width=widths * 0.97,
             marker_color=colors,
-            marker_line_color = colors,
+            marker_line_color = "black",
             marker_line_width = 1,
             text=actual_ratios.index,
-            opacity=0.4,
+            opacity=0.8,
             base=base_radius,
             customdata=custom_data_stack, #<-- 綁定 customdata
             # --- FIX: 更新 hovertemplate ---
