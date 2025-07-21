@@ -446,6 +446,8 @@ def create_polar_comparison_charts(
             theta=thetas,
             width=widths * 0.99,
             marker_color=colors,
+            marker_line_color = colors,
+            marker_line_width = 2,
             text=actual_ratios.index,
             opacity=0.8,
             base=base_radius,
