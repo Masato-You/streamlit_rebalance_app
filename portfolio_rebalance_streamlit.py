@@ -446,7 +446,7 @@ def create_polar_comparison_charts(
             theta=thetas,
             width=widths * 0.97,
             marker_color=colors,
-            marker_line_color = sns.set_hls_values(colors, l=1).as_hex(),
+            marker_line_color = sns.set_hls_values(sns.color_palette('viridis_r', n_colors=len(target_ratios)), l=1).as_hex(),
             marker_line_width = 1,
             text=actual_ratios.index,
             opacity=0.7,
