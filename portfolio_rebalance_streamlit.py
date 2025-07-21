@@ -467,6 +467,7 @@ def create_polar_comparison_charts(
             title=title,
             template='plotly_dark',
             height=600,
+            dragmode = False,
             polar=dict(
                 radialaxis=dict(
                     visible=False,
