@@ -432,8 +432,7 @@ def create_polar_comparison_charts(
 
         # 新增一個代表 100% 目標的基準線環
         fig.add_trace(go.Scatterpolar(
-            r=np.ones(120) * Radius-9.5,
-            base_radius = 9.5,
+            r=np.ones(120) * Radius,
             theta=np.linspace(0, 360, 120),
             mode='lines',
             name='目標基準',
