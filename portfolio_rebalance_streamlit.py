@@ -444,10 +444,10 @@ def create_polar_comparison_charts(
         fig.add_trace(go.Barpolar(
             r=r_values,
             theta=thetas,
-            width=widths * 0.96,
+            width=widths * 0.97,
             marker_color=colors,
             marker_line_color = colors,
-            marker_line_width = 2,
+            marker_line_width = 1,
             text=actual_ratios.index,
             opacity=0.8,
             base=base_radius,
