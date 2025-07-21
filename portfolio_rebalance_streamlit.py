@@ -385,7 +385,7 @@ def operation_type():
 @st.fragment()
 def sell_or_buy():
     buy_allowed, sell_allowed = False, False
-    buy_allowed=st.checkbox("投入/提領時，允許賣出/買入部分資產以達成平衡？")
+    buy_allowed=st.checkbox("投入/提領時，允許賣出/買入部分資產以達成平衡？", help="若不允許，則投入時只會計算需要買入（佔比較低）的資產，\n提領時只會計算需要賣出（佔比較高）的資產。")
     sell_allowed = buy_allowed
     return buy_allowed, sell_allowed
 
