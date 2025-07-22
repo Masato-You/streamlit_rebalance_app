@@ -352,8 +352,9 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
 
 
 def pills(option_map):
-    select = st.pills('時間範圍', options = option_map.keys(), 
-                          format_func=lambda option: option_map[option], selection_mode='single', default=option_map.keys()[0])
+    options = option_map.keys()
+    select = st.pills('時間範圍', options = options, 
+                          format_func=lambda option: option_map[option], selection_mode='single', default=options[0])
     return select
 
 
