@@ -353,7 +353,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
 
 def pills(option_map):
     select = st.pills('時間範圍', options = option_map.keys(), 
-                          format_func=lambda option: option_map[option], selection_mode='single')
+                          format_func=lambda option: option_map[option], selection_mode='single', default=option_map.keys()[0])
     return select
 
 
@@ -365,8 +365,6 @@ def charts(tickers_list, quantities, asset_currencies):
                       12: '一年',
                       36: '三年'}
     select = pills(option_map)
-    if select is None:
-        select = 1
     # 將獲取的貨幣對照表傳遞給繪圖函式
     fig_value, fig_perf = create_portfolio_charts(tickers_list, quantities, asset_currencies, select, option_map)
     # --- 改進 2：使用 st.tabs 建立分頁 ---
