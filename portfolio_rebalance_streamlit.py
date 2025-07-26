@@ -336,7 +336,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     fig_value.add_trace(go.Scatter(
         x=total_portfolio_value_oneyear.index, y=total_portfolio_value_oneyear,
         mode='lines', name='總資產', line=dict(color='deepskyblue', width=2), fill='tozeroy',
-        fillgradient=dict(colorscale=[(0.0, "rgba(29,66,131,1)"), (0.5,  "rgba(29,66,131,0.5)"), (1.0,  "rgba(29,66,131,0)")], type='vertical', start = gradient_start*0.6, stop = gradient_start), showlegend=False))
+        fillgradient=dict(colorscale=[(0.0, "rgba(29,66,131,0)"), (0.5,  "rgba(29,66,131,0.5)"), (1.0,  "rgba(29,66,131,1)")], type='vertical', showlegend=False))
     y_min = total_portfolio_value_oneyear.min() * 0.98
     y_max = total_portfolio_value_oneyear.max() * 1.02
     fig_value.update_layout(
