@@ -192,7 +192,7 @@ def rebalance_by_category(investment_base, current_values_base, portfolio, df_da
         'target_ratio': portfolio
     }).join(df_data.set_index('Ticker')['Categories'])
 
-    df_merged['Categories'] = df_merged.fillna('無指定類別資產')
+    st.write(df_merged)
     # --- 第一階段：類別層級的再平衡 ---
     # 按類別分組，計算每個類別的當前總價值和目標總比例
     category_values = df_merged.groupby('Categories')['current_value'].sum()
