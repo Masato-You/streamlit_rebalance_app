@@ -366,10 +366,10 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         color_key = 'lightcoral'
         if performance_pct_oneyear[-1] < threshold:
             color_key = 'lightgreen'
-        gradient_start_stop = performance_pct_oneyear.abs().max()*0.5
+        gradient_start_stop = performance_pct_oneyear.abs().max()
         fig_perf.add_trace(go.Scatter(x=performance_pct_oneyear.index, y=performance_pct_oneyear,
             mode='lines', name='累積績效', line=dict(color=color_key, width=2),
-            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical', start=gradient_start_stop, stop=-gradient_start_stop),
+            fill='tozeroy', fillgradient=dict(colorscale=[(0.0, "rgba(225,62,51,0.9)"), (0.5,  "rgba(133,134,46,0.1)"), (1.0,  "rgba(113,242,73,0.9)")], type='vertical', start=gradient_start_stop, stop=-gradient_start_stop),
                                               showlegend=False))
     fig_perf.update_layout(
         title='投資組合累積績效 (%)',
@@ -377,8 +377,8 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         template='plotly_dark', height=500,
         yaxis_ticksuffix=' %', hovermode=None
     )
-    fig_perf.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker", spikedash="dot", spikethickness=1.5)
-    fig_perf.update_yaxes(showspikes=True, spikecolor="white", spikethickness=1.5, spikedash="dot", spikemode="across+marker")
+    fig_perf.update_xaxes(showspikes=True, spikecolor="gray", spikesnap="cursor", spikemode="across+marker", spikedash="dot", spikethickness=0.5)
+    fig_perf.update_yaxes(showspikes=True, spikecolor="gray", spikethickness=0.5, spikedash="dot", spikemode="across+marker")
     fig_perf.update_traces(hovertemplate='   %{x}<br>'+
                            '   %{y:.2f}%')
     return fig_value, fig_perf
