@@ -661,7 +661,6 @@ def web_main():
         for fx_ticker in fx_tickers_to_fetch:
             currency_code = fx_ticker.replace("=X", "")
             fx_rates[currency_code] = latest_prices.get(fx_ticker)
-        st.write(fx_rates)
         st.subheader("--- 總資產走勢圖 ---")
         charts(tickers_list, quantities, asset_currencies)
 
@@ -678,15 +677,20 @@ def web_main():
             buy_allowed, sell_allowed = sell_or_buy()
 
         st.subheader("投入/提領金額")
+        twd_invest, usd_invest, jpy_invest = 0, 0, 0
+        factor = -1 if is_withdraw else 1
         with st.form(key='investment_form'):
-            twd_invest_abs = st.number_input("台幣 (TWD)", value=0, min_value=0, format="%d")
-            usd_invest_abs = st.number_input("美金 (USD)", value=0.00, min_value=0.0, format="%.2f")
-            jpy_invest_abs = st.number_input("日圓 (JPY)", value=0, min_value=0, format="%d")
+            if "TWD" in fx_rates.keys():
+                twd_invest_abs = st.number_input("台幣 (TWD)", value=0, min_value=0, format="%d")
+                twd_invest = twd_invest_abs * factor
+            if "USD" in fx_rates.keys():
+                usd_invest_abs = st.number_input("美金 (USD)", value=0.00, min_value=0.0, format="%.2f")
+                usd_invest = usd_invest_abs * factor
+            if "JPY" in fx_rates.keys():
+                jpy_invest_abs = st.number_input("日圓 (JPY)", value=0, min_value=0, format="%d")
+                jpy_invest = jpy_invest_abs * factor
             
-            factor = -1 if is_withdraw else 1
-            twd_invest = twd_invest_abs * factor
-            usd_invest = usd_invest_abs * factor
-            jpy_invest = jpy_invest_abs * factor
+            
 
             submitted = st.form_submit_button("🚀 開始計算再平衡！", use_container_width=True)
 
