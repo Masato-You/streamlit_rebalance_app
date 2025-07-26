@@ -333,7 +333,7 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     # --- 圖表一：總資產價值 (TWD) ---
     fig_value = go.Figure()
     gradient_start = total_portfolio_value_oneyear.max()
-    gradient_stop = total_portfolio_value_oneyear.min()
+    gradient_stop = total_portfolio_value_oneyear.min()*0.8
     fig_value.add_trace(go.Scatter(
         x=total_portfolio_value_oneyear.index, y=total_portfolio_value_oneyear,
         mode='lines', name='總資產', line=dict(color='deepskyblue', width=2), fill='tozeroy',
