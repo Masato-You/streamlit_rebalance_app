@@ -478,7 +478,11 @@ def create_polar_comparison_charts(
         # 為該類別的資產產生從深到淺的漸層色
         cat_base_color = cat_color_map[category]
         asset_palette = sns.light_palette(cat_base_color, n_colors=len(assets_in_cat) + 2, reverse=True)
-        asset_colors.extend([color.hex for color in asset_palette[:-2]])
+        # --- FIX: Convert RGB tuple to hex string ---
+        # The original `color.hex` was incorrect because asset_palette contains RGB tuples.
+        hex_palette = [f'#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}' for r, g, b in asset_palette]
+        asset_colors.extend(hex_palette[:-2])
+        # --- FIX END ---
     
     # --- 繪製圖表 ---
     # (內部輔助函式 _create_single_polar_chart 不變，但顏色參數改為傳入)
