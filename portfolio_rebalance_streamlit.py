@@ -661,7 +661,7 @@ def web_main():
         for fx_ticker in fx_tickers_to_fetch:
             currency_code = fx_ticker.replace("=X", "")
             fx_rates[currency_code] = latest_prices.get(fx_ticker)
-        
+        st.write(fx_rates)
         st.subheader("--- 總資產走勢圖 ---")
         charts(tickers_list, quantities, asset_currencies)
 
