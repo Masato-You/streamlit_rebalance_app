@@ -459,7 +459,7 @@ def create_polar_comparison_charts(
         'target_ratio': target_ratios,
         'before_value_twd': before_values_twd,
         'after_value_twd': after_values_twd
-    }).join(df_data.set_index('Ticker')[['Categories', 'Ticker']])
+    }).join(df_data.set_index('Ticker')[['Categories']])
 
     # 按類別總價值 -> 資產總價值 排序
     df_merged['cat_value'] = df_merged.groupby('Categories')['before_value_twd'].transform('sum')
