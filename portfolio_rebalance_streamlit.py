@@ -192,7 +192,6 @@ def rebalance_by_category(investment_base, current_values_base, portfolio, df_da
         'target_ratio': portfolio
     }).join(df_data.set_index('Ticker')['Categories'])
     df_merged['Categories'] = df_merged['Categories'].fillna("Uncategorized assets")
-    st.write(df_merged)
     # --- 第一階段：類別層級的再平衡 ---
     # 按類別分組，計算每個類別的當前總價值和目標總比例
     category_values = df_merged.groupby('Categories')['current_value'].sum()
@@ -249,12 +248,6 @@ def calculate_transactions(result_base, prices, asset_currencies, fx_rates):
 
     return buy_amounts_local, sell_quantities_local
 
-@st.fragment()
-def invest_withdraw():
-    twd_invest = st.number_input("台幣 (TWD)", value=0)
-    usd_invest = st.number_input("美金 (USD)", value=0.00, format="%.2f")
-    jpy_invest = st.number_input("日圓 (JPY)", value=0)
-    return twd_invest, usd_invest, jpy_invest
 
 
 @st.fragment()
@@ -461,7 +454,7 @@ def create_polar_comparison_charts(
         'before_value_twd': before_values_twd,
         'after_value_twd': after_values_twd
     }).join(df_data.set_index('Ticker')[['Categories']])
-
+    df_merged['Categories'] = df_merged['Categories'].fillna("Uncategorized assets")
     # 按類別總價值 -> 資產總價值 排序
     df_merged['cat_value'] = df_merged.groupby('Categories')['before_value_twd'].transform('sum')
     df_sorted = df_merged.sort_values(by=['cat_value', 'before_value_twd'], ascending=[False, False])
