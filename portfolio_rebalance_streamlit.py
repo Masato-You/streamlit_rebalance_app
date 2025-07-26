@@ -766,7 +766,6 @@ def web_main():
                     after_ratio = adjusted_values_base / adjusted_values_base.sum() if adjusted_values_base.sum() > 0 else before_ratio
                     before_values_twd = current_values_base*fx_rates.get("TWD", 1.0)
                     after_values_twd = adjusted_values_base*fx_rates.get("TWD", 1.0)
-                    fig_before, fig_after = create_polar_comparison_charts(before_ratio, after_ratio, target_ratios=portfolio, before_values_twd=before_values_twd, after_values_twd=after_values_twd)
                     
 
                     # 呼叫新的繪圖函式，它會一次返回四張圖
