@@ -527,7 +527,7 @@ def create_polar_comparison_charts(
             width=widths,
             marker_color=colors,
             marker_line_color="black",
-            marker_line_width=0.05,
+            marker_line_width=0.1,
             text=actual_ratios.index,
             opacity=0.8,
             base=base_radius,
