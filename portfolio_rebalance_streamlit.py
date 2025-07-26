@@ -641,6 +641,10 @@ def web_main():
         # 2.B. 獲取「最新」的價格和匯率，僅用於「再平衡計算」
         st.spinner("正在獲取最新價格與匯率用於計算...")
         unique_currencies = set(asset_currencies.values())
+        # --- FIX: 強制加入 'TWD' 到匯率獲取清單 ---
+        # 因為圖表最終需要以 TWD 呈現，所以無論如何都要取得 TWD 匯率
+        unique_currencies.add('TWD')
+        # --- 修正結束 ---
         fx_tickers_to_fetch = [f"{c}=X" for c in unique_currencies if c != BASE_CURRENCY]
         
         all_tickers_for_latest_price = tickers_list + fx_tickers_to_fetch
