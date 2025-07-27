@@ -2,12 +2,9 @@ import streamlit as st
 import numpy as np
 import yfinance as yf
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import seaborn as sns
 import os
 from numbers_parser import Document, NegativeNumberStyle # <-- 加入 NegativeNumberStyle
-from io import BytesIO
 import plotly.graph_objects as go
 from datetime import date
 from dateutil.relativedelta import relativedelta # 需要 pip install python-dateutil
@@ -33,6 +30,11 @@ def load_data_from_numbers(filename="portfolio_tracker.numbers"):
         df = pd.DataFrame(table_data[1:], columns=table_data[0])
         df = df[df['Ticker'].notna() & (df['Ticker'] != '')].copy()
 
+        # --- 欄位驗證 ---
+        required_columns = ['Ticker', 'Shares', 'Target ratio', 'Categories']
+        if not all(col in df.columns for col in required_columns):
+            raise KeyError(f"Numbers 檔案缺少必要的欄位。請確保包含: {required_columns}")
+
         # --- 新增：目標比例空值驗證 ---
         # 使用 pd.to_numeric 檢查哪些值無法轉換成數字
         numeric_check = pd.to_numeric(df['Target ratio'], errors='coerce')
@@ -48,32 +50,22 @@ def load_data_from_numbers(filename="portfolio_tracker.numbers"):
             st.write("="*50)
             exit() # 中止程式
         # --- 驗證結束 ---
-
-        # 驗證通過後，才安全地進行型別轉換
-        df['Target ratio'] = df['Target ratio'].astype(float)
         
+        df['Target ratio'] = df['Target ratio'].astype(float)
         portfolio_series = pd.Series(df['Target ratio'].values, index=df['Ticker'])
-        # 檢查目標比例總和是否為0，避免除以零的錯誤
         if portfolio_series.sum() == 0:
-            st.write("\n錯誤：所有資產的 'Target ratio' 總和為 0，無法進行正規化。請至少為一項資產設定目標比例。")
-            exit()
+            raise ValueError("所有資產的 'Target ratio' 總和為 0，無法進行正規化。請至少為一項資產設定目標比例。。")
         portfolio_series /= portfolio_series.sum()
         
         quantities_array = df['Shares'].astype(float).to_numpy()
         asset_tickers_list = df['Ticker'].tolist()
 
-        #st.write("數據讀取成功！")
         return portfolio_series, quantities_array, asset_tickers_list, table, df, doc
         
-    except FileNotFoundError:
-        st.write(f"錯誤：找不到檔案 '{filename}'。請確保檔案與腳本在同一個資料夾中。")
-        exit()
-    except KeyError as e:
-        st.write(f"錯誤：Numbers 檔案中缺少必要的欄位：{e}。請確認欄位名稱是否為 'Ticker', 'Shares', 'Target ratio' 等。")
-        exit()
     except Exception as e:
-        st.write(f"讀取或處理 Numbers 檔案時發生錯誤: {e}")
-        exit()
+        st.error(f"讀取或處理 Numbers 檔案時發生錯誤: {e}")
+        st.stop()
+
 def get_asset_and_fx_data(tickers_list):
     """
     獲取所有資產的價格、貨幣資訊，以及所有需要的匯率（使用更穩健的混合模式）。
@@ -185,6 +177,53 @@ def rebalance(investment_base, current_values_base, portfolio, is_withdraw, sell
             sub_result = rebalance(investment_base, sub_value, sub_portfolio / sub_portfolio.sum(), is_withdraw, sell_allowed, buy_allowed)
             return sub_result.reindex(portfolio.index, fill_value=0)
 
+
+# (這是一個全新的函式)
+def rebalance_by_category(investment_base, current_values_base, portfolio, df_data, is_withdraw, sell_allowed, buy_allowed):
+    """
+    執行兩階段的資產類別優先再平衡。
+    """
+    st.spinner("執行資產類別優先的兩階段再平衡...")
+    
+    # --- 數據準備 ---
+    # 將 category 資訊合併到 portfolio 和 current_values
+    df_merged = pd.DataFrame({
+        'current_value': current_values_base,
+        'target_ratio': portfolio
+    }).join(df_data.set_index('Ticker')['Categories'])
+    df_merged['Categories'] = df_merged['Categories'].fillna("Uncategorized assets")
+    # --- 第一階段：類別層級的再平衡 ---
+    # 按類別分組，計算每個類別的當前總價值和目標總比例
+    category_values = df_merged.groupby('Categories')['current_value'].sum()
+    category_targets = df_merged.groupby('Categories')['target_ratio'].sum()
+    
+    # 呼叫 rebalance 函式計算每個類別需要投入/提領的金額
+    category_investment_diff = rebalance(investment_base, category_values, category_targets, is_withdraw, sell_allowed, buy_allowed)
+    
+    # --- 第二階段：資產層級的再平衡 ---
+    final_investment_diff = pd.Series(0.0, index=portfolio.index)
+
+    for category, cat_invest_amount in category_investment_diff.items():
+        if abs(cat_invest_amount) < 1e-6: # 忽略極小的金額
+            continue
+            
+        # 篩選出該類別內的所有資產
+        assets_in_category = df_merged[df_merged['Categories'] == category]
+        cat_is_withdraw = cat_invest_amount < 0
+        
+        # 對該類別內的資產進行第二輪 rebalance
+        sub_rebalance_result = rebalance(
+            investment_base=cat_invest_amount,
+            current_values_base=assets_in_category['current_value'],
+            portfolio=assets_in_category['target_ratio'] / assets_in_category['target_ratio'].sum(),
+            is_withdraw=cat_is_withdraw,
+            sell_allowed=sell_allowed, 
+            buy_allowed=buy_allowed
+        )
+        # 將結果加總到最終差異中
+        final_investment_diff = final_investment_diff.add(sub_rebalance_result, fill_value=0)
+        
+    return final_investment_diff
 def calculate_transactions(result_base, prices, asset_currencies, fx_rates):
     """根據基準貨幣的再平衡結果，計算各幣別的實際交易。"""
     result_base = result_base.round(2)
@@ -209,12 +248,6 @@ def calculate_transactions(result_base, prices, asset_currencies, fx_rates):
 
     return buy_amounts_local, sell_quantities_local
 
-@st.fragment()
-def invest_withdraw():
-    twd_invest = st.number_input("台幣 (TWD)", value=0)
-    usd_invest = st.number_input("美金 (USD)", value=0.00, format="%.2f")
-    jpy_invest = st.number_input("日圓 (JPY)", value=0)
-    return twd_invest, usd_invest, jpy_invest
 
 
 @st.fragment()
@@ -300,10 +333,11 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
     # --- 圖表一：總資產價值 (TWD) ---
     fig_value = go.Figure()
     gradient_start = total_portfolio_value_oneyear.max()
+    gradient_stop = total_portfolio_value_oneyear.min()*0.95
     fig_value.add_trace(go.Scatter(
         x=total_portfolio_value_oneyear.index, y=total_portfolio_value_oneyear,
         mode='lines', name='總資產', line=dict(color='deepskyblue', width=2), fill='tozeroy',
-        fillgradient=dict(colorscale='blues', type='vertical', start = gradient_start*0.6, stop = gradient_start), showlegend=False))
+        fillgradient=dict(colorscale=[(0.0, "rgba(29,66,131,1)"), (0.5,  "rgba(29,66,131,0.5)"), (1.0,  "rgba(29,66,131,0)")], type='vertical', start=gradient_start, stop=gradient_stop), showlegend=False))
     y_min = total_portfolio_value_oneyear.min() * 0.98
     y_max = total_portfolio_value_oneyear.max() * 1.02
     fig_value.update_layout(
@@ -312,8 +346,8 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         template='plotly_dark', height=500, yaxis_tickformat=',.0f',
         yaxis=dict(range=[y_min, y_max]), hovermode=None
     )
-    fig_value.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker", spikedash="dot", spikethickness=1.5)
-    fig_value.update_yaxes(showspikes=True, spikecolor="white", spikethickness=1.5, spikedash="dot", spikemode="across+marker")
+    fig_value.update_xaxes(showspikes=True, spikecolor="gray", spikesnap="cursor", spikemode="across+marker", spikedash="dot", spikethickness=0.5)
+    fig_value.update_yaxes(showspikes=True, spikecolor="gray", spikethickness=0.5, spikedash="dot", spikemode="across+marker")
     fig_value.update_traces(hovertemplate='    %{x}<br>'+
                             '    NT$%{y}')
     # --- 圖表二：累積績效 (%) ---
@@ -332,10 +366,10 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         color_key = 'lightcoral'
         if performance_pct_oneyear[-1] < threshold:
             color_key = 'lightgreen'
-        gradient_start_stop = performance_pct_oneyear.abs().max()*0.5
+        gradient_start_stop = performance_pct_oneyear.abs().max()
         fig_perf.add_trace(go.Scatter(x=performance_pct_oneyear.index, y=performance_pct_oneyear,
             mode='lines', name='累積績效', line=dict(color=color_key, width=2),
-            fill='tozeroy', fillgradient=dict(colorscale='rdylgn', type='vertical', start=gradient_start_stop, stop=-gradient_start_stop),
+            fill='tozeroy', fillgradient=dict(colorscale=[(0.0, "rgba(231,50,34,1)"), (0.5,  "rgba(133,134,46,0.2)"), (1.0,  "rgba(113,242,73,0.9)")], type='vertical', start=gradient_start_stop, stop=-gradient_start_stop),
                                               showlegend=False))
     fig_perf.update_layout(
         title='投資組合累積績效 (%)',
@@ -343,8 +377,8 @@ def create_portfolio_charts(tickers_list: list, quantities_array: np.ndarray, as
         template='plotly_dark', height=500,
         yaxis_ticksuffix=' %', hovermode=None
     )
-    fig_perf.update_xaxes(showspikes=True, spikecolor="white", spikesnap="cursor", spikemode="across+marker", spikedash="dot", spikethickness=1.5)
-    fig_perf.update_yaxes(showspikes=True, spikecolor="white", spikethickness=1.5, spikedash="dot", spikemode="across+marker")
+    fig_perf.update_xaxes(showspikes=True, spikecolor="gray", spikesnap="cursor", spikemode="across+marker", spikedash="dot", spikethickness=0.5)
+    fig_perf.update_yaxes(showspikes=True, spikecolor="gray", spikethickness=0.5, spikedash="dot", spikemode="across+marker")
     fig_perf.update_traces(hovertemplate='   %{x}<br>'+
                            '   %{y:.2f}%')
     return fig_value, fig_perf
@@ -376,10 +410,22 @@ def charts(tickers_list, quantities, asset_currencies):
     with tab2:
         st.plotly_chart(fig_perf, use_container_width=True)
     
+
+
+    
 @st.fragment
 def operation_type():
-    investment_type=st.radio("操作類型：", ('投入資金', '提領資金'))
-    return investment_type
+    col1, col2 = st.columns(2)
+    with col1:
+        investment_type=st.radio("操作類型：", ('投入資金', '提領資金'))
+    with col2:
+        rebalance_priority = st.radio(
+            "再平衡優先級：",
+            ('個別資產', '資產類別優先'),
+            help="選擇『資產類別優先』會啟用兩階段再平衡，確保大類別的比例優先滿足目標。"
+        )
+        by_category = (rebalance_priority == '資產類別優先')
+    return investment_type, by_category
 
 @st.fragment()
 def sell_or_buy():
@@ -388,23 +434,60 @@ def sell_or_buy():
     sell_allowed = buy_allowed
     return buy_allowed, sell_allowed
 
+# (此函式用於替換舊版本)
 @st.fragment()
 def create_polar_comparison_charts(
     before_ratios: pd.Series, 
     after_ratios: pd.Series, 
     target_ratios: pd.Series,
-    before_values_twd: pd.Series, #<-- 新增參數
-    after_values_twd: pd.Series   #<-- 新增參數
-) -> tuple[go.Figure, go.Figure]:
+    before_values_twd: pd.Series,
+    after_values_twd: pd.Series,
+    df_data: pd.DataFrame #<-- 新增 df 參數以獲取 category
+) -> tuple[go.Figure, go.Figure, go.Figure, go.Figure]:
     """
-    建立並列的極座標柱狀圖，比較再平衡前後的資產分佈。
+    建立資產層級和類別層級的極座標柱狀圖。
     """
+    # --- 數據準備與排序 ---
+    df_merged = pd.DataFrame({
+        'before_ratio': before_ratios,
+        'after_ratio': after_ratios,
+        'target_ratio': target_ratios,
+        'before_value_twd': before_values_twd,
+        'after_value_twd': after_values_twd
+    }).join(df_data.set_index('Ticker')[['Categories']])
+    df_merged['Categories'] = df_merged['Categories'].fillna("Uncategorized assets")
+    # 按類別總價值 -> 資產總價值 排序
+    df_merged['cat_value'] = df_merged.groupby('Categories')['before_value_twd'].transform('sum')
+    df_sorted = df_merged.sort_values(by=['cat_value', 'before_value_twd'], ascending=[False, False])
+    
+    # --- 顏色邏輯 ---
+    # 1. 產生類別顏色
+    unique_categories = df_sorted['Categories'].unique()
+    category_colors = sns.color_palette('viridis_r', n_colors=len(unique_categories)).as_hex()
+    cat_color_map = dict(zip(unique_categories, category_colors))
+
+    # 2. 產生資產顏色
+    asset_colors = []
+    for category in unique_categories:
+        assets_in_cat = df_sorted[df_sorted['Categories'] == category]
+        # 為該類別的資產產生從深到淺的漸層色
+        cat_base_color = cat_color_map[category]
+        asset_palette = sns.light_palette(cat_base_color, n_colors=len(assets_in_cat)+3, reverse=True)
+        # --- FIX: Convert RGB tuple to hex string ---
+        # The original `color.hex` was incorrect because asset_palette contains RGB tuples.
+        hex_palette = [f'#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}' for r, g, b in asset_palette]
+        asset_colors.extend(hex_palette[:-3])
+        # --- FIX END ---
+    
+    # --- 繪製圖表 ---
+    # (內部輔助函式 _create_single_polar_chart 不變，但顏色參數改為傳入)
     # 內部輔助函式，用於繪製單張圖表
     def _create_single_polar_chart(
         actual_ratios: pd.Series, 
         target_ratios: pd.Series, 
         actual_values_twd: pd.Series, #<-- 新增參數
-        title: str
+        title: str,
+        colors
     ) -> go.Figure:
         # 確保數據對齊
         target_ratios = target_ratios.reindex(actual_ratios.index).fillna(0)
@@ -413,7 +496,6 @@ def create_polar_comparison_charts(
         # --- 計算圖形參數 ---
         widths = target_ratios.values * 360
         thetas = np.cumsum(widths) - 0.5 * widths
-        colors = sns.color_palette('viridis_r', n_colors=len(target_ratios)).as_hex()
         base_radius = 6
         Radius = 10        #外圈半徑
         r_values = np.sqrt(base_radius**2 + (actual_ratios.values / (target_ratios.values + 1e-9)) * (Radius**2 - base_radius**2)) - base_radius
@@ -443,8 +525,10 @@ def create_polar_comparison_charts(
         fig.add_trace(go.Barpolar(
             r=r_values,
             theta=thetas,
-            width=widths * 0.99,
+            width=widths,
             marker_color=colors,
+            marker_line_color="black",
+            marker_line_width=2,
             text=actual_ratios.index,
             opacity=0.8,
             base=base_radius,
@@ -482,11 +566,26 @@ def create_polar_comparison_charts(
         )
         return fig
 
-    # --- 主函式邏輯：產生兩張圖 ---
-    fig_before = _create_single_polar_chart(before_ratios, target_ratios, before_values_twd, "平衡前 vs. 目標")
-    fig_after = _create_single_polar_chart(after_ratios, target_ratios, after_values_twd, "平衡後 vs. 目標")
+    # 繪製資產層級圖表
+    fig_before_asset = _create_single_polar_chart(df_sorted['before_ratio'], df_sorted['target_ratio'], df_sorted['before_value_twd'], "資產層級 (平衡前)", asset_colors)
+    fig_after_asset = _create_single_polar_chart(df_sorted['after_ratio'], df_sorted['target_ratio'], df_sorted['after_value_twd'], "資產層級 (平衡後)", asset_colors)
+
+    # 繪製類別層級圖表
+    cat_before_ratios = df_sorted.groupby('Categories')['before_ratio'].sum().sort_values(ascending=False)
+    cat_target_ratios = df_sorted.groupby('Categories')['target_ratio'].sum().reindex(cat_before_ratios.index)
+    cat_before_values = df_sorted.groupby('Categories')['before_value_twd'].sum().reindex(cat_before_ratios.index)
     
-    return fig_before, fig_after
+    cat_after_ratios = df_sorted.groupby('Categories')['after_ratio'].sum().reindex(cat_before_ratios.index)
+    cat_after_values = df_sorted.groupby('Categories')['after_value_twd'].sum().reindex(cat_before_ratios.index)
+    
+    # 顏色使用排序後的類別基礎色
+    sorted_cat_colors = [cat_color_map[cat] for cat in cat_before_ratios.index]
+
+    fig_before_cat = _create_single_polar_chart(cat_before_ratios, cat_target_ratios, cat_before_values, "類別層級 (平衡前)", sorted_cat_colors)
+    fig_after_cat = _create_single_polar_chart(cat_after_ratios, cat_target_ratios, cat_after_values, "類別層級 (平衡後)", sorted_cat_colors)
+    
+    return fig_before_asset, fig_after_asset, fig_before_cat, fig_after_cat
+
 # --- Streamlit 網頁應用主體 ---
 def web_main():
     # 設定網頁標題和說明
@@ -543,6 +642,10 @@ def web_main():
         # 2.B. 獲取「最新」的價格和匯率，僅用於「再平衡計算」
         st.spinner("正在獲取最新價格與匯率用於計算...")
         unique_currencies = set(asset_currencies.values())
+        # --- FIX: 強制加入 'TWD' 到匯率獲取清單 ---
+        # 因為圖表最終需要以 TWD 呈現，所以無論如何都要取得 TWD 匯率
+        unique_currencies.add('TWD')
+        # --- 修正結束 ---
         fx_tickers_to_fetch = [f"{c}=X" for c in unique_currencies if c != BASE_CURRENCY]
         
         all_tickers_for_latest_price = tickers_list + fx_tickers_to_fetch
@@ -559,7 +662,6 @@ def web_main():
         for fx_ticker in fx_tickers_to_fetch:
             currency_code = fx_ticker.replace("=X", "")
             fx_rates[currency_code] = latest_prices.get(fx_ticker)
-        
         st.subheader("--- 總資產走勢圖 ---")
         charts(tickers_list, quantities, asset_currencies)
 
@@ -568,7 +670,7 @@ def web_main():
 
         col1, col2 = st.columns(2)
         with col1:
-            investment_type = operation_type()
+            investment_type, by_category = operation_type()
         
         is_withdraw = (investment_type == '提領資金')
 
@@ -576,15 +678,20 @@ def web_main():
             buy_allowed, sell_allowed = sell_or_buy()
 
         st.subheader("投入/提領金額")
+        twd_invest, usd_invest, jpy_invest = 0, 0, 0
+        factor = -1 if is_withdraw else 1
         with st.form(key='investment_form'):
-            twd_invest_abs = st.number_input("台幣 (TWD)", value=0, min_value=0, format="%d")
-            usd_invest_abs = st.number_input("美金 (USD)", value=0.00, min_value=0.0, format="%.2f")
-            jpy_invest_abs = st.number_input("日圓 (JPY)", value=0, min_value=0, format="%d")
+            if "TWD" in fx_rates.keys():
+                twd_invest_abs = st.number_input("台幣 (TWD)", value=0, min_value=0, format="%d")
+                twd_invest = twd_invest_abs * factor
+            if "USD" in fx_rates.keys():
+                usd_invest_abs = st.number_input("美金 (USD)", value=0.00, min_value=0.0, format="%.2f")
+                usd_invest = usd_invest_abs * factor
+            if "JPY" in fx_rates.keys():
+                jpy_invest_abs = st.number_input("日圓 (JPY)", value=0, min_value=0, format="%d")
+                jpy_invest = jpy_invest_abs * factor
             
-            factor = -1 if is_withdraw else 1
-            twd_invest = twd_invest_abs * factor
-            usd_invest = usd_invest_abs * factor
-            jpy_invest = jpy_invest_abs * factor
+            
 
             submitted = st.form_submit_button("🚀 開始計算再平衡！", use_container_width=True)
 
@@ -609,8 +716,12 @@ def web_main():
                         if total_withdrawal_base > total_assets_base:
                             st.error(f"錯誤：欲提領金額 (約 ${total_withdrawal_base:,.2f}) 已超出資產總額 (約 ${total_assets_base:,.2f})。")
                             st.stop()
-
-                    result_base = rebalance(investment_base, current_values_base, portfolio, is_withdraw, sell_allowed, buy_allowed)
+                    # --- 核心邏輯修改：根據使用者選擇呼叫不同的 rebalance 函式 ---
+                    if by_category:
+                        result_base = rebalance_by_category(investment_base, current_values_base, portfolio, df, is_withdraw, sell_allowed, buy_allowed)
+                    else:
+                        st.spinner("執行個別資產的單層再平衡...")
+                        result_base = rebalance(investment_base, current_values_base, portfolio, is_withdraw, sell_allowed, buy_allowed)
                     buy_amounts_local, sell_quantities_local = calculate_transactions(result_base, prices, asset_currencies, fx_rates)
                     
                     # --- 在網頁上顯示結果 ---
@@ -664,15 +775,34 @@ def web_main():
                     after_ratio = adjusted_values_base / adjusted_values_base.sum() if adjusted_values_base.sum() > 0 else before_ratio
                     before_values_twd = current_values_base*fx_rates.get("TWD", 1.0)
                     after_values_twd = adjusted_values_base*fx_rates.get("TWD", 1.0)
-                    fig_before, fig_after = create_polar_comparison_charts(before_ratio, after_ratio, target_ratios=portfolio, before_values_twd=before_values_twd, after_values_twd=after_values_twd)
                     
 
-                    # 3. 使用 st.columns 並列顯示
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.plotly_chart(fig_before, use_container_width=True, theme=None)
-                    with col2:
-                        st.plotly_chart(fig_after, use_container_width=True, theme=None)
+                    # 呼叫新的繪圖函式，它會一次返回四張圖
+                    fig_before_asset, fig_after_asset, fig_before_cat, fig_after_cat = create_polar_comparison_charts(
+                        before_ratios=before_ratio,
+                        after_ratios=after_ratio,
+                        target_ratios=portfolio,
+                        before_values_twd=before_values_twd,
+                        after_values_twd=after_values_twd,
+                        df_data=df # 傳入 df
+                    )
+
+                    # --- UI 修改：使用 tabs 來顯示不同層級的圖表 ---
+                    tab_asset, tab_category = st.tabs(["按資產顯示", "按類別顯示"])
+
+                    with tab_asset:
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.plotly_chart(fig_before_asset, use_container_width=True, theme=None)
+                        with col2:
+                            st.plotly_chart(fig_after_asset, use_container_width=True, theme=None)
+                    
+                    with tab_category:
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.plotly_chart(fig_before_cat, use_container_width=True, theme=None)
+                        with col2:
+                            st.plotly_chart(fig_after_cat, use_container_width=True, theme=None)
 
 
 
